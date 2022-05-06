@@ -47,6 +47,7 @@ pub enum Token {
     If,
     Else,
     While,
+    Break,
     Let,
     Mut,
     I64,
@@ -101,6 +102,7 @@ impl Token {
             Token::If => "If".to_string(),
             Token::Else => "Else".to_string(),
             Token::While => "While".to_string(),
+            Token::Break => "Break".to_string(),
             Token::Let => "Let".to_string(),
             Token::Mut => "Mutable".to_string(),
             Token::I64 => "i64".to_string(),
@@ -121,17 +123,30 @@ impl Token {
 // Key: keywords string
 // Value: pair of the respective Token and length of keywords string
 fn build_keywords() -> HashMap<&'static str, (Token, usize)> {
+    const RETURN: &str = "return";
+    const TRUE: &str = "true";
+    const FALSE: &str = "false";
+    const IF: &str = "if";
+    const ELSE: &str = "else";
+    const FN: &str = "fn";
+    const LET: &str = "let";
+    const I64: &str = "i64";
+    const MUT: &str = "mut";
+    const WHILE: &str = "while";
+    const BREAK: &str = "break";
+
     let mut keywords: HashMap<&str, (Token, usize)> = HashMap::with_capacity(12);
-    keywords.insert("return", (Token::Return, 6));
-    keywords.insert("true", (Token::True, 4));
-    keywords.insert("false", (Token::False, 5));
-    keywords.insert("if", (Token::If, 2));
-    keywords.insert("else", (Token::Else, 4));
-    keywords.insert("fn", (Token::Func, 2));
-    keywords.insert("let", (Token::Let, 3));
-    keywords.insert("i64", (Token::I64, 3));
-    keywords.insert("mut", (Token::Mut, 3));
-    keywords.insert("while", (Token::While, 5));
+    keywords.insert(RETURN, (Token::Return, RETURN.len()));
+    keywords.insert(TRUE, (Token::True, TRUE.len()));
+    keywords.insert(FALSE, (Token::False, FALSE.len()));
+    keywords.insert(IF, (Token::If, IF.len()));
+    keywords.insert(ELSE, (Token::Else, ELSE.len()));
+    keywords.insert(FN, (Token::Func, FN.len()));
+    keywords.insert(LET, (Token::Let, LET.len()));
+    keywords.insert(I64, (Token::I64, I64.len()));
+    keywords.insert(MUT, (Token::Mut, MUT.len()));
+    keywords.insert(WHILE, (Token::While, WHILE.len()));
+    keywords.insert(BREAK, (Token::Break, BREAK.len()));
 
     keywords
 }
@@ -324,6 +339,7 @@ pub enum Node {
     Assign(Name, Expr),
     If(Condition, BlockNode, Alter),
     While(Condition, BlockNode),
+    Break,
     Block(Elements),
     Return(Expr),
 
@@ -363,11 +379,11 @@ impl Node {
 
             Node::Minus(ch) => format!("Minus<{}>", ch.string()),
 
-            Node::True => "true".to_string(),
+            Node::True => "True".to_string(),
             Node::False => "False".to_string(),
             Node::Integer(val) => format!("Int<{}> ", val),
 
-            Node::Id(name) => format!("ID<{}>", name),
+            Node::Id(name) => format!("Id<{}>", name),
             Node::Return(expr) => format!("Return({})", expr.string()),
 
             Node::Let(id, option) => match option {
@@ -390,6 +406,8 @@ impl Node {
             Node::While(cond, stmts) => {
                 format!("While {}:\n\t\t{}", cond.string(), (*stmts).string())
             }
+            Node::Break => "Break".to_string(),
+
             Node::If(cond, stmts, alter) => match alter {
                 Some(alt) => format!(
                     "IF<{},{}> ELSE<{}>",
@@ -531,7 +549,14 @@ impl Parser {
             }
 
             Token::LBrace => self.parse_block(),
+
             Token::While => self.parse_while(),
+            Token::Break => {
+                self.go_next_token();
+                self.expect(&Token::Semi)?;
+                Ok(Node::Break)
+            }
+
             Token::If => self.parse_if(),
             _ => Err(format!("statement can't start with '{}'", t.to_string())),
         }

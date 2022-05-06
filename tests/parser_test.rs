@@ -310,7 +310,9 @@ fn parsing_if_two_blocks() {
 fn parsing_while() {
     let source = "
     fn main() {
-        while (true) {}
+        while (true) {
+            break;
+        }
     }
     "
     .to_string();
@@ -319,7 +321,7 @@ fn parsing_while() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
-    let block = Node::Block(Box::new(vec![]));
+    let block = Node::Block(Box::new(vec![Node::Break]));
     let while_ = Node::While(Box::new(Node::True), Box::new(block));
 
     // Compare the parsed nodes with the expected ones
