@@ -118,7 +118,7 @@ fn parsing_empty_function() {
 fn parsing_arithmetic_sum_literals() {
     let source = "
     fn main() {
-        let mut num: i64;
+        let mut num: i64 = 0;
         num = -1 + 2;
     }
     "
@@ -128,6 +128,7 @@ fn parsing_arithmetic_sum_literals() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let_ = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
     let minus = Node::Neg(Box::new(Node::Integer(1)));
     let lit2 = Node::Integer(2);
 
@@ -136,15 +137,15 @@ fn parsing_arithmetic_sum_literals() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
 }
 
 #[test]
 fn parsing_arithmetic_sum_with_id() {
     let source = "
     fn main() {
-        let mut num1: i64;
-        let mut num2: i64;
+        let mut num1: i64 = 0;
+        let mut num2: i64 = 0;
 
         num1 = 1;
         num2 = -1 + num1;
@@ -156,6 +157,8 @@ fn parsing_arithmetic_sum_with_id() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let1 = Node::Let("num1".to_string(), Box::new(Node::Integer(0)));
+    let let2 = Node::Let("num2".to_string(), Box::new(Node::Integer(0)));
     let minus = Node::Neg(Box::new(Node::Integer(1)));
     let add = Node::Add(Box::new(minus), Box::new(Node::Id("num1".to_string())));
 
@@ -164,20 +167,21 @@ fn parsing_arithmetic_sum_with_id() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign1, assign2]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let1, let2, assign1, assign2]);
 }
 
 #[test]
 fn parsing_invalid_assign() {
     let source = "
     fn main() {
-        num = 0;
+        let mut num: i64 = 0;
+        num = undeclared;
     }
     "
     .to_string();
 
     match parse(source) {
-        Err(mes) => assert_eq!(mes, "Assign to undeclared variable num".to_string()),
+        Err(mes) => assert_eq!(mes, "Use of undeclared variable undeclared".to_string()),
         _ => assert!(false),
     };
 }
@@ -186,7 +190,7 @@ fn parsing_invalid_assign() {
 fn parsing_arithmetic_mul_sum_literals() {
     let source = "
     fn main() {
-        let mut num: i64;
+        let mut num: i64 = 0;
         num = (1 + 2) * 3;
     }
     "
@@ -196,6 +200,7 @@ fn parsing_arithmetic_mul_sum_literals() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let_ = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
     let lit1 = Node::Integer(1);
     let lit2 = Node::Integer(2);
     let lit3 = Node::Integer(3);
@@ -206,14 +211,14 @@ fn parsing_arithmetic_mul_sum_literals() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
 }
 
 #[test]
 fn parsing_arithmetic_div() {
     let source = "
     fn main(p: i64) {
-        let mut num: i64;
+        let mut num: i64 = 0;
         num = p / 2;
     }
     "
@@ -223,6 +228,7 @@ fn parsing_arithmetic_div() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let_ = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
     let lit = Node::Integer(2);
     let id = Node::Id("p".to_string());
     let div = Node::Div(Box::new(id), Box::new(lit));
@@ -231,14 +237,14 @@ fn parsing_arithmetic_div() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
 }
 
 #[test]
 fn parsing_assign() {
     let source = "
     fn main() {
-        let mut num: i64;
+        let mut num: i64 = 0;
         num = 0;
     }
     "
@@ -248,20 +254,21 @@ fn parsing_assign() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let_ = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
     let int = Node::Integer(0);
     let assign = Node::Assign("num".to_string(), Box::new(int));
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
 }
 
 #[test]
 fn parsing_shifts() {
     let source = "
     fn main() {
-        let mut num1: i64;
-        let mut num2: i64;
+        let mut num1: i64 = 0;
+        let mut num2: i64 = 0;
 
         num1 = 1 << 2;
         num2 = 2 >> 1;
@@ -273,6 +280,8 @@ fn parsing_shifts() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let1 = Node::Let("num1".to_string(), Box::new(Node::Integer(0)));
+    let let2 = Node::Let("num2".to_string(), Box::new(Node::Integer(0)));
     let lshift = Node::Shl(Box::new(Node::Integer(1)), Box::new(Node::Integer(2)));
     let rshift = Node::Shr(Box::new(Node::Integer(2)), Box::new(Node::Integer(1)));
 
@@ -281,7 +290,7 @@ fn parsing_shifts() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign1, assign2]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let1, let2, assign1, assign2]);
 }
 
 #[test]
@@ -358,8 +367,8 @@ fn parsing_while() {
 fn parsing_call_separately() {
     let source = "
     fn main() {
-        let mut num: i64;
-        let mut other: i64;
+        let mut num: i64 = 0;
+        let mut other: i64 = 0;
 
         print(num, other, 1 + 1);
     }
@@ -370,6 +379,8 @@ fn parsing_call_separately() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let1 = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
+    let let2 = Node::Let("other".to_string(), Box::new(Node::Integer(0)));
     let num1 = Node::Integer(1);
     let num2 = Node::Integer(1);
     let add = Node::Add(Box::new(num1), Box::new(num2));
@@ -379,14 +390,14 @@ fn parsing_call_separately() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![call]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let1, let2, call]);
 }
 
 #[test]
 fn parsing_call_as_expression() {
     let source = "
     fn main() {
-        let mut num: i64;
+        let mut num: i64 = 0;
         num = calc() + 1;
     }
     "
@@ -396,6 +407,7 @@ fn parsing_call_as_expression() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
+    let let_ = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
     let num = Node::Integer(1);
     let call = Node::Call("calc".to_string(), Box::new(vec![]));
     let add = Node::Add(Box::new(call), Box::new(num));
@@ -403,7 +415,7 @@ fn parsing_call_as_expression() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![assign]);
+    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
 }
 
 #[test]
