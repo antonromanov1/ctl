@@ -20,4 +20,4 @@ cargo test
 
 ## Features
 
-* **Parsing**. CTL can parse a source code written in a Rust's subset. You can get familiar with the language in `tests/parser_test.rs`
+* **Parsing**. CTL can parse a source code written in almost a subset of Rust. You can get familiar with the language in `tests/parser_test.rs`
