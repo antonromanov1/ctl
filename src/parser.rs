@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Token {
@@ -298,9 +298,6 @@ type Elements = Box<Vec<Node>>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
-    // Functions parameter
-    Param(Name),
-
     // Unary-operation
     Minus(Child),
 
@@ -335,12 +332,12 @@ pub enum Node {
     Ge(Child, Child),
 
     // Statements
-    Let(Name, Option<Expr>),
     Assign(Name, Expr),
     If(Condition, BlockNode, Alter),
     While(Condition, BlockNode),
     Break,
     Block(Elements),
+    ReturnVoid,
     Return(Expr),
 
     Call(Name, Elements),
@@ -384,12 +381,9 @@ impl Node {
             Node::Integer(val) => format!("Int<{}> ", val),
 
             Node::Id(name) => format!("Id<{}>", name),
+            Node::ReturnVoid => format!("ReturnVoid"),
             Node::Return(expr) => format!("Return({})", expr.string()),
 
-            Node::Let(id, option) => match option {
-                Some(expr) => format!("Let <{}> = ({})", id, expr.string()),
-                None => format!("Let <{}>", id),
-            },
             Node::Assign(id, expr) => format!("Assign<{}>({})", id, expr.string()),
 
             Node::Block(stmts) => {
@@ -400,8 +394,6 @@ impl Node {
                 let arguments = elements_to_string!(args);
                 format!("Call {}, args: {}", id, arguments)
             }
-
-            Node::Param(name) => format!("Param<{}>", name),
 
             Node::While(cond, stmts) => {
                 format!("While {}:\n\t\t{}", cond.string(), (*stmts).string())
@@ -423,55 +415,19 @@ impl Node {
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
-struct Symbol {
-    stack_offset: usize,
-    is_mutable: bool,
-}
-
-impl Symbol {
-    fn new(offset: usize, flg: bool) -> Self {
-        Self {
-            stack_offset: offset,
-            is_mutable: flg,
-        }
-    }
-}
-
-#[derive(Clone)]
-struct Env {
-    sym_table: BTreeMap<String, Symbol>,
-    prev: Option<Box<Env>>,
-}
-
-impl Env {
-    fn new() -> Env {
-        Env {
-            sym_table: BTreeMap::new(),
-            prev: None,
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Func {
     name: String,
     stmts: Vec<Node>,
-    params: Vec<Node>,
-    env: Env,
+    params: Vec<String>,
 }
 
 impl Func {
-    pub fn new() -> Self {
-        Func {
-            name: String::new(),
-            stmts: Vec::new(),
-            params: Vec::new(),
-            env: Env::new(),
-        }
+    pub fn get_name(&self) -> &String {
+        &self.name
     }
 
-    pub fn get_params(&self) -> &Vec<Node> {
+    pub fn get_params(&self) -> &Vec<String> {
         &self.params
     }
 
@@ -490,15 +446,21 @@ pub fn dump_ast(funcs: &Vec<Func>) {
     }
 }
 
+/// Field tokens is written after lexing one time and is never rewritten, only read.
+/// The source language is only able to have top level variable declarations and no ones in
+/// the inner scopes. Therefore we use cur_variables set for all of the local variables and the
+/// parameters of a function.
 struct Parser {
     tokens: Vec<Token>,
-    funcs: Vec<Func>,
-    cur_env: Env,
-
     // Index of current token in vector of tokens
     cur: usize,
     // Index of the next one
     next: usize,
+
+    funcs: Vec<Func>,
+    cur_variables: HashSet<String>,
+    // Does current function have a return type
+    return_type: bool,
 }
 
 impl Parser {
@@ -506,7 +468,8 @@ impl Parser {
         Parser {
             tokens: tokens,
             funcs: Vec::with_capacity(100),
-            cur_env: Env::new(),
+            cur_variables: HashSet::new(),
+            return_type: false,
             cur: 0,
             next: 1,
         }
@@ -514,15 +477,14 @@ impl Parser {
 
     // Parse whole parsing source code
     fn top_level(&mut self) -> ParseResult<()> {
-        let global = Env::new();
         let mut funcs = Vec::with_capacity(100);
 
         loop {
-            let t: &Token = &self.get_token();
+            let t: &Token = self.cur_token();
 
             match t {
                 &Token::Func => {
-                    funcs.push(self.parse_func(global.clone())?);
+                    funcs.push(self.parse_func()?);
                 }
                 _ => break,
             }
@@ -536,14 +498,16 @@ impl Parser {
         let t: Token = self.get_token();
         match t {
             Token::Return => self.parse_return(),
-            Token::Let => self.parse_let(),
 
             Token::Id(name) => {
                 if *self.next_token() == Token::Assign {
+                    if !self.cur_variables.contains(&name) {
+                        return Err(format!("Assign to undeclared variable {}", name));
+                    }
                     return self.parse_assign();
                 }
                 if *self.next_token() != Token::LParent {
-                    return Err(format!("Undefined token after id"));
+                    return Err("Undefined token after id".to_string());
                 }
                 return self.parse_call(name.clone());
             }
@@ -562,45 +526,63 @@ impl Parser {
         }
     }
 
-    fn parse_func(&mut self, global: Env) -> ParseResult<Func> {
-        self.cur_env = Env::new();
-        self.cur_env.prev = Some(Box::new(global));
-        self.go_next_token();
+    fn parse_func(&mut self) -> ParseResult<Func> {
+        self.expect(&Token::Func)?;
         let func_name: String = self.consume_id()?;
         self.expect(&Token::LParent)?;
-        let mut func_params: Vec<Node> = Vec::new();
 
+        // Parse function parameter declarations, add parameter names to cur_variables.
+        let mut func_params = Vec::new();
+        self.cur_variables = HashSet::new();
         while !self.consume(&Token::RParent) {
-            func_params.push(self.define_param()?);
+            let param_name = self.define_param()?;
+            func_params.push(param_name.clone());
+            self.cur_variables.insert(param_name.clone());
+
             if !self.consume(&Token::Comma) {
                 self.expect(&Token::RParent)?;
                 break;
             }
         }
 
+        self.return_type = false;
         if self.consume(&Token::Arrow) {
             self.consume_typename()?;
+            self.return_type = true;
         }
 
-        let func_stmts: Vec<Node> = self.compound_stmt()?;
+        self.expect(&Token::LBrace)?;
+
+        // Parse local variable declarations.
+        while self.cur_token() == &Token::Let {
+            let let_ = self.parse_let()?;
+            if let Node::Id(name) = let_ {
+                self.cur_variables.insert(name);
+            } else {
+                debug_assert!(false);
+            }
+        }
+
+        // Parse function statements including blocks.
+        let mut func_stmts = Vec::new();
+        while !self.consume(&Token::RBrace) {
+            let st: Node = self.stmt()?;
+            func_stmts.push(st);
+        }
+
         Ok(Func {
             name: func_name,
             params: func_params,
             stmts: func_stmts,
-            env: self.cur_env.clone(),
         })
     }
 
-    fn define_param(&mut self) -> ParseResult<Node> {
-        let mutable: bool = self.consume(&Token::Mut);
+    fn define_param(&mut self) -> ParseResult<String> {
         let param_name: String = self.consume_id()?;
         self.consume(&Token::Colon);
         self.consume_typename()?;
-        self.cur_env
-            .sym_table
-            .insert(param_name.clone(), Symbol::new(0, mutable));
 
-        Ok(Node::Param(param_name))
+        Ok(param_name)
     }
 
     fn parse_while(&mut self) -> ParseResult<Node> {
@@ -636,35 +618,36 @@ impl Parser {
 
     fn parse_let(&mut self) -> ParseResult<Node> {
         self.expect(&Token::Let)?;
-        let mutable_flag: bool = self.consume(&Token::Mut);
+        self.expect(&Token::Mut)?;
         let id_name: String = self.consume_id()?;
-        if self.cur_token() == &Token::Colon {
-            self.go_next_token();
-            self.consume_typename()?;
-        }
-        if self.consume(&Token::Assign) {
-            let expr: Node = self.expr()?;
-            self.cur_env
-                .sym_table
-                .insert(id_name.clone(), Symbol::new(0, mutable_flag));
-            self.expect(&Token::Semi)?;
+        self.expect(&Token::Colon)?;
+        self.consume_typename()?;
+        self.expect(&Token::Semi)?;
 
-            Ok(Node::Let(id_name, Some(Box::new(expr))))
-        } else {
-            if self.cur_token() != &Token::Semi {
-                return Err(format!(
-                    "Expected a semicolon, got {}",
-                    self.cur_token().to_string()
-                ));
-            }
-            self.go_next_token();
-            Ok(Node::Let(id_name, None))
-        }
+        Ok(Node::Id(id_name))
     }
 
     fn parse_return(&mut self) -> ParseResult<Node> {
         self.expect(&Token::Return)?;
+        if let Token::Semi = self.cur_token() {
+            // `let` expressions in this position are experimental
+            // cargo 1.54.0 (5ae8d74b3 2021-06-22)
+            if self.return_type {
+                return Err("Function with a returning type returns void".to_string());
+            }
+
+            self.go_next_token();
+            return Ok(Node::ReturnVoid);
+        }
+
         let expr: Node = self.expr()?;
+        if !self.return_type {
+            return Err(format!(
+                "Function with no return type returns value: {}",
+                expr.string()
+            ));
+        }
+
         self.expect(&Token::Semi)?;
         Ok(Node::Return(Box::new(expr)))
     }
@@ -856,7 +839,13 @@ impl Parser {
                         Ok(Node::Call(name, Box::new(args)))
                     }
 
-                    _ => Ok(Node::Id(name)),
+                    _ => {
+                        if self.cur_variables.contains(&name) {
+                            return Ok(Node::Id(name));
+                        } else {
+                            return Err(format!("Use of undeclared variable {}", name));
+                        }
+                    }
                 }
             }
 
@@ -907,12 +896,7 @@ impl Parser {
                 Ok(Token::I64)
             }
 
-            Token::Id(name) => {
-                self.go_next_token();
-                Ok(Token::Id(name.to_string()))
-            }
-
-            _ => Err(format!("got {} it's not typename ", t.to_string())),
+            _ => Err(format!("got {}, it's not a type name ", t.to_string())),
         }
     }
 
