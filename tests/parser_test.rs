@@ -128,7 +128,7 @@ fn parsing_arithmetic_sum_literals() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
-    let minus = Node::Minus(Box::new(Node::Integer(1)));
+    let minus = Node::Neg(Box::new(Node::Integer(1)));
     let lit2 = Node::Integer(2);
 
     let add = Node::Add(Box::new(minus), Box::new(lit2));
@@ -156,7 +156,7 @@ fn parsing_arithmetic_sum_with_id() {
     let funcs = parse(source).unwrap();
 
     // Create expected nodes
-    let minus = Node::Minus(Box::new(Node::Integer(1)));
+    let minus = Node::Neg(Box::new(Node::Integer(1)));
     let add = Node::Add(Box::new(minus), Box::new(Node::Id("num1".to_string())));
 
     let assign1 = Node::Assign("num1".to_string(), Box::new(Node::Integer(1)));

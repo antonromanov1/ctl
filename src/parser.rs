@@ -66,51 +66,55 @@ pub enum Token {
     COMMENT,
 }
 
-impl Token {
-    fn to_string(&self) -> String {
-        match self {
-            Token::IntLiteral(int) => format!("IntLiteral<{}>", int),
-            Token::Plus => "Plus".to_string(),
-            Token::Minus => "Minus".to_string(),
-            Token::Star => "Star".to_string(),
-            Token::Slash => "Slash".to_string(),
-            Token::Percent => "Percent".to_string(),
-            Token::Assign => "Assign".to_string(),
-            Token::LParent => "LParent".to_string(),
-            Token::RParent => "RParent".to_string(),
-            Token::LBrace => "LBrace".to_string(),
-            Token::RBrace => "RBrace".to_string(),
-            Token::Shl => "Shl".to_string(),
-            Token::Shr => "Shr".to_string(),
-            Token::Lt => "LessThan".to_string(),
-            Token::Gt => "GreaterThan".to_string(),
-            Token::Le => "LessThanOrEqual".to_string(),
-            Token::Ge => "GreaterThanOrEqual".to_string(),
-            Token::Eq => "Equal".to_string(),
-            Token::Ne => "NotEqual".to_string(),
-            Token::Semi => "Semi".to_string(),
-            Token::Colon => "Colon".to_string(),
-            Token::Arrow => "Arrow".to_string(),
-            Token::Comma => "Comma".to_string(),
-            Token::Return => "Return".to_string(),
-            Token::Eof => "Eof".to_string(),
-            Token::Func => "Function".to_string(),
-            Token::Id(name) => format!("ID<{}>", name),
+use std::fmt;
 
-            Token::True => "true".to_string(),
-            Token::False => "false".to_string(),
-            Token::If => "If".to_string(),
-            Token::Else => "Else".to_string(),
-            Token::While => "While".to_string(),
-            Token::Break => "Break".to_string(),
-            Token::Let => "Let".to_string(),
-            Token::Mut => "Mutable".to_string(),
-            Token::I64 => "i64".to_string(),
-            Token::LineFeed => "LineFeed".to_string(),
-            _ => "".to_string(),
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Token::IntLiteral(int) => write!(f, "IntLiteral<{}>", int),
+            Token::Plus => write!(f, "Plus"),
+            Token::Minus => write!(f, "Minus"),
+            Token::Star => write!(f, "Star"),
+            Token::Slash => write!(f, "Slash"),
+            Token::Percent => write!(f, "Percent"),
+            Token::Assign => write!(f, "Assign"),
+            Token::LParent => write!(f, "LParent"),
+            Token::RParent => write!(f, "RParent"),
+            Token::LBrace => write!(f, "LBrace"),
+            Token::RBrace => write!(f, "RBrace"),
+            Token::Shl => write!(f, "Shl"),
+            Token::Shr => write!(f, "Shr"),
+            Token::Lt => write!(f, "LessThan"),
+            Token::Gt => write!(f, "GreaterThan"),
+            Token::Le => write!(f, "LessThanOrEqual"),
+            Token::Ge => write!(f, "GreaterThanOrEqual"),
+            Token::Eq => write!(f, "Equal"),
+            Token::Ne => write!(f, "NotEqual"),
+            Token::Semi => write!(f, "Semi"),
+            Token::Colon => write!(f, "Colon"),
+            Token::Arrow => write!(f, "Arrow"),
+            Token::Comma => write!(f, "Comma"),
+            Token::Return => write!(f, "Return"),
+            Token::Eof => write!(f, "Eof"),
+            Token::Func => write!(f, "Function"),
+            Token::Id(name) => write!(f, "ID<{}>", name),
+
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
+            Token::If => write!(f, "If"),
+            Token::Else => write!(f, "Else"),
+            Token::While => write!(f, "While"),
+            Token::Break => write!(f, "Break"),
+            Token::Let => write!(f, "Let"),
+            Token::Mut => write!(f, "Mutable"),
+            Token::I64 => write!(f, "i64"),
+            Token::LineFeed => write!(f, "LineFeed"),
+            _ => std::unreachable!("Got blank or comment token"),
         }
     }
+}
 
+impl Token {
     fn should_ignore(&self) -> bool {
         match self {
             Token::Blank | Token::LineFeed | Token::COMMENT => true,
@@ -299,7 +303,7 @@ type Elements = Box<Vec<Node>>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
     // Unary-operation
-    Minus(Child),
+    Neg(Child),
 
     // Numeric literal
     Integer(i64),
@@ -349,68 +353,74 @@ macro_rules! elements_to_string {
     ($box:expr) => {{
         let mut elements = String::new();
         for node in &**$box {
-            elements.push_str(&format!("{}, ", node.string()));
+            elements.push_str(&format!("{}, ", node.to_string()));
         }
         elements
     }};
 }
 
-impl Node {
-    pub fn string(&self) -> String {
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Node::Add(lch, rch) => format!("Add<{}, {}>", lch.string(), rch.string()),
-            Node::Sub(lch, rch) => format!("Sub<{}, {}>", lch.string(), rch.string()),
-            Node::Mul(lch, rch) => format!("Mul<{}, {}>", lch.string(), rch.string()),
-            Node::Div(lch, rch) => format!("Div<{}, {}>", lch.string(), rch.string()),
-            Node::Mod(lch, rch) => format!("Mod<{}, {}>", lch.string(), rch.string()),
+            Node::Add(lch, rch) => write!(f, "Add<{}, {}>", lch.to_string(), rch.to_string()),
+            Node::Sub(lch, rch) => write!(f, "Sub<{}, {}>", lch.to_string(), rch.to_string()),
+            Node::Mul(lch, rch) => write!(f, "Mul<{}, {}>", lch.to_string(), rch.to_string()),
+            Node::Div(lch, rch) => write!(f, "Div<{}, {}>", lch.to_string(), rch.to_string()),
+            Node::Mod(lch, rch) => write!(f, "Mod<{}, {}>", lch.to_string(), rch.to_string()),
 
-            Node::Ne(lch, rch) => format!("Ne<{},{}>", lch.string(), rch.string()),
-            Node::Eq(lch, rch) => format!("Eq<{},{}>", lch.string(), rch.string()),
-            Node::Lt(lch, rch) => format!("Lt<{},{}>", lch.string(), rch.string()),
-            Node::Gt(lch, rch) => format!("Gt<{},{}>", lch.string(), rch.string()),
-            Node::Le(lch, rch) => format!("Le<{},{}>", lch.string(), rch.string()),
-            Node::Ge(lch, rch) => format!("Ge<{},{}>", lch.string(), rch.string()),
+            Node::Ne(lch, rch) => write!(f, "Ne<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Eq(lch, rch) => write!(f, "Eq<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Lt(lch, rch) => write!(f, "Lt<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Gt(lch, rch) => write!(f, "Gt<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Le(lch, rch) => write!(f, "Le<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Ge(lch, rch) => write!(f, "Ge<{},{}>", lch.to_string(), rch.to_string()),
 
-            Node::Shl(lch, rch) => format!("Shl<{},{}>", lch.string(), rch.string()),
-            Node::Shr(lch, rch) => format!("Shr<{},{}>", lch.string(), rch.string()),
+            Node::Shl(lch, rch) => write!(f, "Shl<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Shr(lch, rch) => write!(f, "Shr<{},{}>", lch.to_string(), rch.to_string()),
 
-            Node::Minus(ch) => format!("Minus<{}>", ch.string()),
+            Node::Neg(ch) => write!(f, "Neg<{}>", ch.to_string()),
 
-            Node::True => "True".to_string(),
-            Node::False => "False".to_string(),
-            Node::Integer(val) => format!("Int<{}> ", val),
+            Node::True => write!(f, "True"),
+            Node::False => write!(f, "False"),
+            Node::Integer(val) => write!(f, "Int<{}> ", val),
 
-            Node::Id(name) => format!("Id<{}>", name),
-            Node::ReturnVoid => format!("ReturnVoid"),
-            Node::Return(expr) => format!("Return({})", expr.string()),
+            Node::Id(name) => write!(f, "Id<{}>", name),
+            Node::ReturnVoid => write!(f, "ReturnVoid"),
+            Node::Return(expr) => write!(f, "Return({})", expr.to_string()),
 
-            Node::Assign(id, expr) => format!("Assign<{}>({})", id, expr.string()),
+            Node::Assign(id, expr) => write!(f, "Assign<{}>({})", id, expr.to_string()),
 
             Node::Block(stmts) => {
                 let elements = elements_to_string!(stmts);
-                format!("Block with {} elements: {}", stmts.len(), elements)
+                write!(f, "Block with {} elements: {}", stmts.len(), elements)
             }
             Node::Call(id, args) => {
                 let arguments = elements_to_string!(args);
-                format!("Call {}, args: {}", id, arguments)
+                write!(f, "Call {}, args: {}", id, arguments)
             }
 
             Node::While(cond, stmts) => {
-                format!("While {}:\n\t\t{}", cond.string(), (*stmts).string())
+                write!(
+                    f,
+                    "While {}:\n\t\t{}",
+                    cond.to_string(),
+                    (*stmts).to_string()
+                )
             }
-            Node::Break => "Break".to_string(),
+            Node::Break => write!(f, "Break"),
 
             Node::If(cond, stmts, alter) => match alter {
-                Some(alt) => format!(
+                Some(alt) => write!(
+                    f,
                     "IF<{},{}> ELSE<{}>",
-                    cond.string(),
-                    stmts.string(),
-                    alt.string()
+                    cond.to_string(),
+                    stmts.to_string(),
+                    alt.to_string()
                 ),
-                None => format!("IF<{},{}>", cond.string(), stmts.string()),
+                None => write!(f, "IF<{},{}>", cond.to_string(), stmts.to_string()),
             },
 
-            _ => "INVALID".to_string(),
+            Node::Invalid => std::unreachable!(),
         }
     }
 }
@@ -441,7 +451,7 @@ pub fn dump_ast(funcs: &Vec<Func>) {
     for f in funcs.iter() {
         println!("Function {}", f.name);
         for st in f.stmts.iter() {
-            println!("\t{}", st.string());
+            println!("\t{}", st.to_string());
         }
     }
 }
@@ -559,7 +569,7 @@ impl Parser {
             if let Node::Id(name) = let_ {
                 self.cur_variables.insert(name);
             } else {
-                debug_assert!(false);
+                std::unreachable!();
             }
         }
 
@@ -644,7 +654,7 @@ impl Parser {
         if !self.return_type {
             return Err(format!(
                 "Function with no return type returns value: {}",
-                expr.string()
+                expr.to_string()
             ));
         }
 
@@ -789,7 +799,7 @@ impl Parser {
         match t {
             Token::Minus => {
                 self.go_next_token();
-                Ok(Node::Minus(Box::new(self.unary()?)))
+                Ok(Node::Neg(Box::new(self.unary()?)))
             }
             _ => self.term(),
         }
