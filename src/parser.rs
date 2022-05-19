@@ -336,6 +336,7 @@ pub enum Node {
     Ge(Child, Child),
 
     // Statements
+    Let(Name, Expr),
     Assign(Name, Expr),
     If(Condition, BlockNode, Alter),
     While(Condition, BlockNode),
@@ -388,6 +389,7 @@ impl fmt::Display for Node {
             Node::ReturnVoid => write!(f, "ReturnVoid"),
             Node::Return(expr) => write!(f, "Return({})", expr.to_string()),
 
+            Node::Let(name, expr) => write!(f, "Let {} = {}", name, expr.to_string()),
             Node::Assign(id, expr) => write!(f, "Assign<{}>({})", id, expr.to_string()),
 
             Node::Block(stmts) => {
@@ -563,18 +565,19 @@ impl Parser {
 
         self.expect(&Token::LBrace)?;
 
+        let mut func_stmts = Vec::new();
         // Parse local variable declarations.
         while self.cur_token() == &Token::Let {
             let let_ = self.parse_let()?;
-            if let Node::Id(name) = let_ {
-                self.cur_variables.insert(name);
+            if let Node::Let(name, _expr) = let_.clone() {
+                self.cur_variables.insert(name.clone());
             } else {
                 std::unreachable!();
             }
+            func_stmts.push(let_);
         }
 
         // Parse function statements including blocks.
-        let mut func_stmts = Vec::new();
         while !self.consume(&Token::RBrace) {
             let st: Node = self.stmt()?;
             func_stmts.push(st);
@@ -632,9 +635,11 @@ impl Parser {
         let id_name: String = self.consume_id()?;
         self.expect(&Token::Colon)?;
         self.consume_typename()?;
+        self.expect(&Token::Assign)?;
+        let expr = self.expr()?;
         self.expect(&Token::Semi)?;
 
-        Ok(Node::Id(id_name))
+        Ok(Node::Let(id_name, Box::new(expr)))
     }
 
     fn parse_return(&mut self) -> ParseResult<Node> {
