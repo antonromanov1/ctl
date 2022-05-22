@@ -386,7 +386,7 @@ fn parsing_call_separately() {
     let add = Node::Add(Box::new(num1), Box::new(num2));
     let id1 = Node::Id("num".to_string());
     let id2 = Node::Id("other".to_string());
-    let call = Node::Call("print".to_string(), Box::new(vec![id1, id2, add]));
+    let call = Node::Call("print".to_string(), Box::new(vec![id1, id2, add]), false);
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
@@ -409,7 +409,7 @@ fn parsing_call_as_expression() {
     // Create expected nodes
     let let_ = Node::Let("num".to_string(), Box::new(Node::Integer(0)));
     let num = Node::Integer(1);
-    let call = Node::Call("calc".to_string(), Box::new(vec![]));
+    let call = Node::Call("calc".to_string(), Box::new(vec![]), true);
     let add = Node::Add(Box::new(call), Box::new(num));
     let assign = Node::Assign("num".to_string(), Box::new(add));
 

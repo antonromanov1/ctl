@@ -159,6 +159,76 @@ fn generate_arithmetic_expression() {
 }
 
 #[test]
+fn generate_negate() {
+    let source = "
+    fn main() {
+        let mut a: i64 = -1;
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+    assert_eq!(funcs.len(), 1);
+
+    // Generate IR instructions
+    let insts = generate_insts(&funcs[0]);
+    assert!(!insts.is_empty());
+
+    // Dump these to a string
+    let dump = dump(insts);
+
+    // Create expected dump
+    let expected = "
+        0: MoveImm v1, 1
+        1: v2 = Neg(v1)
+        2: Move v0, v2
+        3: ReturnVoid"
+        .to_string();
+
+    // Compare generated instructions with the expected ones
+    assert_eq!(dump, expected);
+}
+
+#[test]
+fn generate_shifts() {
+    let source = "
+    fn main() {
+        let mut a: i64 = 1 << 2;
+        let mut b: i64 = 1 >> 2;
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+    assert_eq!(funcs.len(), 1);
+
+    // Generate IR instructions
+    let insts = generate_insts(&funcs[0]);
+    assert!(!insts.is_empty());
+
+    // Dump these to a string
+    let dump = dump(insts);
+
+    // Create expected dump
+    let expected = "
+        0: MoveImm v1, 1
+        1: MoveImm v2, 2
+        2: v3 = Shl(v1, v2)
+        3: Move v0, v3
+        4: MoveImm v5, 1
+        5: MoveImm v6, 2
+        6: v7 = Shr(v5, v6)
+        7: Move v4, v7
+        8: ReturnVoid"
+        .to_string();
+
+    // Compare generated instructions with the expected ones
+    assert_eq!(dump, expected);
+}
+
+#[test]
 fn generate_conditional_branch_with_assign() {
     let source = "
     fn main(p: i64) -> i64 {
@@ -532,8 +602,72 @@ fn generate_call_no_arguments() {
 
     // Create expected dump
     let expected = "
-        0: v0 = Call print, args: 
+        0: Call print, args: 
         1: ReturnVoid"
+        .to_string();
+
+    // Compare generated instructions with the expected ones
+    assert_eq!(dump, expected);
+}
+
+#[test]
+fn generate_call_few_arguments() {
+    let source = "
+    fn main() {
+        print(1, 2);
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+    assert_eq!(funcs.len(), 1);
+
+    // Generate IR instructions
+    let insts = generate_insts(&funcs[0]);
+    assert!(!insts.is_empty());
+
+    // Dump these to a string
+    let dump = dump(insts);
+
+    // Create expected dump
+    let expected = "
+        0: MoveImm v0, 1
+        1: MoveImm v1, 2
+        2: Call print, args: v0, v1
+        3: ReturnVoid"
+        .to_string();
+
+    // Compare generated instructions with the expected ones
+    assert_eq!(dump, expected);
+}
+
+#[test]
+fn generate_call_as_expression() {
+    let source = "
+    fn main() {
+        let mut num: i64 = calc(0);
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+    assert_eq!(funcs.len(), 1);
+
+    // Generate IR instructions
+    let insts = generate_insts(&funcs[0]);
+    assert!(!insts.is_empty());
+
+    // Dump these to a string
+    let dump = dump(insts);
+
+    // Create expected dump
+    let expected = "
+        0: MoveImm v1, 0
+        1: v2 = Call calc, args: v1
+        2: Move v0, v2
+        3: ReturnVoid"
         .to_string();
 
     // Compare generated instructions with the expected ones

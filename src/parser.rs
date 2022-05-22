@@ -345,7 +345,9 @@ pub enum Node {
     ReturnVoid,
     Return(Expr),
 
-    Call(Name, Elements),
+    // Name of calling function, passing arguments and is call separate or it is a
+    // subexpression.
+    Call(Name, Elements, bool),
 
     Invalid,
 }
@@ -396,7 +398,7 @@ impl fmt::Display for Node {
                 let elements = elements_to_string!(stmts);
                 write!(f, "Block with {} elements: {}", stmts.len(), elements)
             }
-            Node::Call(id, args) => {
+            Node::Call(id, args, _) => {
                 let arguments = elements_to_string!(args);
                 write!(f, "Call {}, args: {}", id, arguments)
             }
@@ -512,15 +514,20 @@ impl Parser {
             Token::Return => self.parse_return(),
 
             Token::Id(name) => {
+                // After the ID there should be either the equal sign (which means this is an assign)
+                // or opening parenthesis.
+
                 if *self.next_token() == Token::Assign {
                     if !self.cur_variables.contains(&name) {
                         return Err(format!("Assign to undeclared variable {}", name));
                     }
                     return self.parse_assign();
                 }
+
                 if *self.next_token() != Token::LParent {
                     return Err("Undefined token after id".to_string());
                 }
+
                 return self.parse_call(name.clone());
             }
 
@@ -688,7 +695,7 @@ impl Parser {
         }
 
         self.expect(&Token::Semi)?;
-        Ok(Node::Call(name, Box::new(args)))
+        Ok(Node::Call(name, Box::new(args), false))
     }
 
     fn parse_assign(&mut self) -> ParseResult<Node> {
@@ -851,7 +858,7 @@ impl Parser {
                             }
                         }
 
-                        Ok(Node::Call(name, Box::new(args)))
+                        Ok(Node::Call(name, Box::new(args), true))
                     }
 
                     _ => {

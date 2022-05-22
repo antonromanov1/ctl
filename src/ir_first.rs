@@ -51,18 +51,29 @@ pub enum Inst {
     MoveImm(Var, i64),
     Move(Var, Var),
 
+    // Arithmetic binary instructions.
+    // Destination, source 1, source 2
     Add(Var, Var, Var),
     Sub(Var, Var, Var),
     Mul(Var, Var, Var),
     Div(Var, Var, Var),
     Mod(Var, Var, Var),
 
+    // Negating instruction.
+    // Destination, source
+    Neg(Var, Var),
+
+    // Shifts.
+    // Destination, source 1, source 2
+    Shl(Var, Var, Var),
+    Shr(Var, Var, Var),
+
     IfFalse(Var, Var, Cc, Target),
     Goto(Target),
     Return(Var),
     ReturnVoid,
 
-    Call(Var, String, Vec<Var>),
+    Call(Option<Var>, String, Vec<Var>),
 }
 
 impl fmt::Display for Inst {
@@ -78,6 +89,11 @@ impl fmt::Display for Inst {
             Inst::Div(dest, op1, op2) => write!(f, "v{} = Div(v{}, v{})", dest, op1, op2),
             Inst::Mod(dest, op1, op2) => write!(f, "v{} = Mod(v{}, v{})", dest, op1, op2),
 
+            Inst::Neg(dest, val) => write!(f, "v{} = Neg(v{})", dest, val),
+
+            Inst::Shl(dest, op1, op2) => write!(f, "v{} = Shl(v{}, v{})", dest, op1, op2),
+            Inst::Shr(dest, op1, op2) => write!(f, "v{} = Shr(v{}, v{})", dest, op1, op2),
+
             Inst::IfFalse(op1, op2, cc, target) => write!(
                 f,
                 "IfFalse v{} {} v{}, goto {}",
@@ -91,7 +107,13 @@ impl fmt::Display for Inst {
             Inst::ReturnVoid => write!(f, "ReturnVoid"),
 
             Inst::Call(dest, name, args) => {
-                let mut s = format!("v{} = Call {}, args: ", dest, name);
+                let mut s = String::new();
+                if let Some(d) = dest {
+                    s.push_str(&format!("v{} = Call {}, args: ", d, name));
+                } else {
+                    s.push_str(&format!("Call {}, args: ", name));
+                }
+
                 for (i, arg) in args.iter().enumerate() {
                     if i != args.len() - 1 {
                         s.push_str(&format!("v{}, ", arg));
@@ -170,9 +192,16 @@ enum OpType {
     Mul,
     Div,
     Mod,
+    Shl,
+    Shr,
 }
 
-fn gen_arith(prep: &mut Prepare, left: &Box<Node>, right: &Box<Node>, op: OpType) -> Option<u16> {
+fn gen_arith_or_shift(
+    prep: &mut Prepare,
+    left: &Box<Node>,
+    right: &Box<Node>,
+    op: OpType,
+) -> Option<u16> {
     let op1 = gen_and_check(&left, prep);
     let op2 = gen_and_check(&right, prep);
     let arith = match op {
@@ -181,6 +210,8 @@ fn gen_arith(prep: &mut Prepare, left: &Box<Node>, right: &Box<Node>, op: OpType
         OpType::Mul => Inst::Mul(prep.count, op1, op2),
         OpType::Div => Inst::Div(prep.count, op1, op2),
         OpType::Mod => Inst::Mod(prep.count, op1, op2),
+        OpType::Shl => Inst::Shl(prep.count, op1, op2),
+        OpType::Shr => Inst::Shr(prep.count, op1, op2),
     };
     prep.count = prep.count + 1;
     prep.insts.push(arith);
@@ -378,7 +409,13 @@ fn generate_infinite_loop(prep: &mut Prepare, block: &Box<Node>) {
     debug_assert!(matches!(breaks, Some { .. }));
 }
 
-fn generate_call(prep: &mut Prepare, name: &String, arg_nodes: &Vec<Node>) -> u16 {
+fn generate_call(
+    prep: &mut Prepare,
+    name: &String,
+    arg_nodes: &Vec<Node>,
+    is_subexpr: bool,
+) -> Option<u16> {
+    // Determine or create variables for the arguments
     let mut args = Vec::new();
     for node in (*arg_nodes).iter() {
         let ptr = Box::new((*node).clone());
@@ -386,10 +423,16 @@ fn generate_call(prep: &mut Prepare, name: &String, arg_nodes: &Vec<Node>) -> u1
         args.push(arg);
     }
 
-    let call = Inst::Call(prep.count, (*name).clone(), args);
-    prep.insts.push(call);
-    prep.count = prep.count + 1;
-    return prep.count - 1;
+    if is_subexpr {
+        let call = Inst::Call(Some(prep.count), (*name).clone(), args);
+        prep.insts.push(call);
+        prep.count = prep.count + 1;
+        return Some(prep.count - 1);
+    } else {
+        let call = Inst::Call(None, (*name).clone(), args);
+        prep.insts.push(call);
+        return None;
+    }
 }
 
 impl Node {
@@ -422,27 +465,27 @@ impl Node {
         }
 
         if let Self::Add(left, right) = self {
-            let dest = gen_arith(prep, &left, &right, OpType::Add);
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Add);
             return dest;
         }
 
         if let Self::Sub(left, right) = self {
-            let dest = gen_arith(prep, &left, &right, OpType::Sub);
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Sub);
             return dest;
         }
 
         if let Self::Mul(left, right) = self {
-            let dest = gen_arith(prep, &left, &right, OpType::Mul);
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Mul);
             return dest;
         }
 
         if let Self::Div(left, right) = self {
-            let dest = gen_arith(prep, &left, &right, OpType::Div);
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Div);
             return dest;
         }
 
         if let Self::Mod(left, right) = self {
-            let dest = gen_arith(prep, &left, &right, OpType::Mod);
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Mod);
             return dest;
         }
 
@@ -478,9 +521,9 @@ impl Node {
             return None;
         }
 
-        if let Self::Call(name, arg_nodes) = self {
-            let ret_var = generate_call(prep, name, arg_nodes);
-            return Some(ret_var);
+        if let Self::Call(name, arg_nodes, is_subexpr) = self {
+            let ret_var = generate_call(prep, name, arg_nodes, *is_subexpr);
+            return ret_var;
         }
 
         if let Self::Return(val) = self {
@@ -491,6 +534,30 @@ impl Node {
         }
 
         // TODO: implement generating in Node cases of Neg, Shl, Shr, ReturnVoid
+
+        if let Self::Neg(val) = self {
+            let var = gen_and_check(&val, prep);
+            let neg = Inst::Neg(prep.count, var);
+            prep.count = prep.count + 1;
+            prep.insts.push(neg);
+            return Some(prep.count - 1);
+        }
+
+        if let Self::Shl(left, right) = self {
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Shl);
+            return dest;
+        }
+
+        if let Self::Shr(left, right) = self {
+            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Shr);
+            return dest;
+        }
+
+        if let Self::ReturnVoid = self {
+            let return_void = Inst::ReturnVoid;
+            prep.insts.push(return_void);
+            return None;
+        }
 
         std::unreachable!();
     }
