@@ -138,7 +138,7 @@ fn find_dest(variables: &HashMap<String, u16>, name: &String) -> u16 {
 // vars  - map (variable name from AST -> variable number in the IR)
 // count - number of variables
 // whiles - vector of vectors of numbers of Goto (break) instructions.
-pub struct Prepare {
+struct Prepare {
     insts: Vec<Inst>,
     vars: HashMap<String, u16>,
     count: u16,
@@ -412,7 +412,7 @@ fn generate_infinite_loop(prep: &mut Prepare, block: &Box<Node>) {
 fn generate_call(
     prep: &mut Prepare,
     name: &String,
-    arg_nodes: &Vec<Node>,
+    arg_nodes: &[Node],
     is_subexpr: bool,
 ) -> Option<u16> {
     // Determine or create variables for the arguments
@@ -436,7 +436,7 @@ fn generate_call(
 }
 
 impl Node {
-    pub fn generate(&self, prep: &mut Prepare) -> Option<u16> {
+    fn generate(&self, prep: &mut Prepare) -> Option<u16> {
         // When we meet identifier we try to find it in the HashMap and extract from it the number
         // of the IR variable.
         if let Self::Id(name) = self {
