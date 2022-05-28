@@ -441,16 +441,16 @@ impl Func {
         &self.name
     }
 
-    pub fn get_params(&self) -> &Vec<String> {
+    pub fn get_params(&self) -> &[String] {
         &self.params
     }
 
-    pub fn get_stmts(&self) -> &Vec<Node> {
+    pub fn get_stmts(&self) -> &[Node] {
         &self.stmts
     }
 }
 
-pub fn dump_ast(funcs: &Vec<Func>) {
+pub fn dump_ast(funcs: &[Func]) {
     println!("--------Dump AST--------");
     for f in funcs.iter() {
         println!("Function {}", f.name);
