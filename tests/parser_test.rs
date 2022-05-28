@@ -182,7 +182,7 @@ fn parsing_invalid_assign() {
 
     match parse(source) {
         Err(mes) => assert_eq!(mes, "Use of undeclared variable undeclared".to_string()),
-        _ => assert!(false),
+        _ => std::unreachable!(),
     };
 }
 
@@ -473,7 +473,7 @@ fn parsing_return_error1() {
             mes,
             "Function with a returning type returns void".to_string()
         ),
-        _ => assert!(false),
+        _ => std::unreachable!(),
     };
 }
 
@@ -491,7 +491,7 @@ fn parsing_return_error2() {
             mes,
             "Function with no return type returns value: Id<p>".to_string()
         ),
-        _ => assert!(false),
+        _ => std::unreachable!(),
     };
 }
 

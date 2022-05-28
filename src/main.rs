@@ -30,9 +30,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             insts.len()
         );
         for (i, inst) in insts.iter().enumerate() {
-            println!("{}. {}", i, inst.to_string());
+            println!("{}. {}", i, inst);
         }
-        println!("");
+        println!();
     }
 
     Ok(())

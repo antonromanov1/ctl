@@ -94,14 +94,9 @@ impl fmt::Display for Inst {
             Inst::Shl(dest, op1, op2) => write!(f, "v{} = Shl(v{}, v{})", dest, op1, op2),
             Inst::Shr(dest, op1, op2) => write!(f, "v{} = Shr(v{}, v{})", dest, op1, op2),
 
-            Inst::IfFalse(op1, op2, cc, target) => write!(
-                f,
-                "IfFalse v{} {} v{}, goto {}",
-                op1,
-                cc.to_string(),
-                op2,
-                target
-            ),
+            Inst::IfFalse(op1, op2, cc, target) => {
+                write!(f, "IfFalse v{} {} v{}, goto {}", op1, cc, op2, target)
+            }
             Inst::Goto(target) => write!(f, "Goto {}", target),
             Inst::Return(value) => write!(f, "Return v{}", value),
             Inst::ReturnVoid => write!(f, "ReturnVoid"),
@@ -156,31 +151,31 @@ impl Prepare {
     }
 }
 
-fn gen_and_check(expr: &Box<Node>, prep: &mut Prepare) -> u16 {
+fn gen_and_check(expr: &Node, prep: &mut Prepare) -> u16 {
     let source = expr.generate(prep);
-    if let None = source {
+    if source.is_none() {
         println!("Variable for expression is not defined");
         std::process::exit(1);
     }
     source.unwrap()
 }
 
-fn gen_expr(expr: &Box<Node>, prep: &mut Prepare, dest: u16) {
+fn gen_expr(expr: &Node, prep: &mut Prepare, dest: u16) {
     let source = gen_and_check(expr, prep);
     let move_inst = Inst::Move(dest, source);
     prep.insts.push(move_inst);
 }
 
-fn generate_let(prep: &mut Prepare, name: &String, expr: &Box<Node>) {
+fn generate_let(prep: &mut Prepare, name: &String, expr: &Node) {
     let dest_or_none = prep.vars.get(name);
 
-    let dest;
-    if let None = dest_or_none {
+    let dest: u16;
+    if let Some(d) = dest_or_none {
+        dest = *d;
+    } else {
         prep.vars.insert((*name).clone(), prep.count);
         dest = prep.count;
-        prep.count = prep.count + 1;
-    } else {
-        dest = *dest_or_none.unwrap();
+        prep.count += 1;
     }
 
     gen_expr(expr, prep, dest);
@@ -196,14 +191,9 @@ enum OpType {
     Shr,
 }
 
-fn gen_arith_or_shift(
-    prep: &mut Prepare,
-    left: &Box<Node>,
-    right: &Box<Node>,
-    op: OpType,
-) -> Option<u16> {
-    let op1 = gen_and_check(&left, prep);
-    let op2 = gen_and_check(&right, prep);
+fn gen_arith_or_shift(prep: &mut Prepare, left: &Node, right: &Node, op: OpType) -> Option<u16> {
+    let op1 = gen_and_check(left, prep);
+    let op2 = gen_and_check(right, prep);
     let arith = match op {
         OpType::Add => Inst::Add(prep.count, op1, op2),
         OpType::Sub => Inst::Sub(prep.count, op1, op2),
@@ -213,10 +203,10 @@ fn gen_arith_or_shift(
         OpType::Shl => Inst::Shl(prep.count, op1, op2),
         OpType::Shr => Inst::Shr(prep.count, op1, op2),
     };
-    prep.count = prep.count + 1;
+    prep.count += 1;
     prep.insts.push(arith);
 
-    return Some(prep.count - 1);
+    Some(prep.count - 1)
 }
 
 fn gen_operand(prep: &mut Prepare, op: &Node) -> u16 {
@@ -272,7 +262,7 @@ fn gen_operands_cc(prep: &mut Prepare, cond: &Node) -> (Var, Var, Cc) {
             op2 = gen_operand(prep, child2);
             (op1, op2, Cc::Gt)
         }
-        _ => panic!("Expected eq, ne, le, ge, got {}", (*cond).to_string()),
+        _ => panic!("Expected eq, ne, le, ge, got {}", (*cond)),
     }
 }
 
@@ -300,9 +290,9 @@ fn push_part_if_get_index(prep: &mut Prepare, op1: Var, op2: Var, cc: Cc) -> usi
 // 2 Goto 4
 // 3 alter block
 // 4 Instruction after the branching
-fn generate_if(prep: &mut Prepare, cond: &Box<Node>, block: &Box<Node>, alter: &Option<Box<Node>>) {
+fn generate_if(prep: &mut Prepare, cond: &Node, block: &Node, alter: &Option<Box<Node>>) {
     // (1) Generate operands of the comparison, compute the condition code
-    let (op1, op2, cc) = gen_operands_cc(prep, &**cond);
+    let (op1, op2, cc) = gen_operands_cc(prep, cond);
 
     // (2) Create empty IfFalse instruction, add it to the vector and remember its position
     //     in order to write the target instruction later after generating instructions for the
@@ -319,7 +309,7 @@ fn generate_if(prep: &mut Prepare, cond: &Box<Node>, block: &Box<Node>, alter: &
         let goto = Inst::Goto(u16::MAX);
         let goto_index = prep.insts.len();
         prep.insts.push(goto);
-        if_target = if_target + 1;
+        if_target += 1;
 
         (*block_ptr).generate(prep);
         let goto = Inst::Goto(prep.insts.len().try_into().unwrap());
@@ -361,12 +351,12 @@ fn set_breaks(prep: &mut Prepare) {
 // the last vector and write target instructions (which is instruction after the last instruction)
 // to these Goto's. At the begining of the generating while we push a new vector there and
 // pop at the end.
-fn generate_while(prep: &mut Prepare, cond: &Box<Node>, block: &Box<Node>) {
+fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
     // (1) Push vector of breaks for this cycle
     prep.whiles.push(Vec::new());
 
     // (2) Generate operands of the comparison, compute the condition code
-    let (op1, op2, cc) = gen_operands_cc(prep, &**cond);
+    let (op1, op2, cc) = gen_operands_cc(prep, cond);
 
     // (3) Create empty IfFalse instruction, add it to the vector and remember its position
     //     in order to write the target instruction later after generating instructions for the
@@ -396,7 +386,7 @@ fn generate_while(prep: &mut Prepare, cond: &Box<Node>, block: &Box<Node>) {
     debug_assert!(matches!(breaks, Some { .. }));
 }
 
-fn generate_infinite_loop(prep: &mut Prepare, block: &Box<Node>) {
+fn generate_infinite_loop(prep: &mut Prepare, block: &Node) {
     prep.whiles.push(Vec::new());
 
     let while_begin: u16 = prep.insts.len().try_into().unwrap();
@@ -426,12 +416,12 @@ fn generate_call(
     if is_subexpr {
         let call = Inst::Call(Some(prep.count), (*name).clone(), args);
         prep.insts.push(call);
-        prep.count = prep.count + 1;
-        return Some(prep.count - 1);
+        prep.count += 1;
+        Some(prep.count - 1)
     } else {
         let call = Inst::Call(None, (*name).clone(), args);
         prep.insts.push(call);
-        return None;
+        None
     }
 }
 
@@ -448,7 +438,7 @@ impl Node {
         // the variable number.
         if let Self::Integer(num) = self {
             let inst = Inst::MoveImm(prep.count, *num);
-            prep.count = prep.count + 1;
+            prep.count += 1;
             prep.insts.push(inst);
             return Some(prep.count - 1);
         }
@@ -465,27 +455,27 @@ impl Node {
         }
 
         if let Self::Add(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Add);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Add);
             return dest;
         }
 
         if let Self::Sub(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Sub);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Sub);
             return dest;
         }
 
         if let Self::Mul(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Mul);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Mul);
             return dest;
         }
 
         if let Self::Div(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Div);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Div);
             return dest;
         }
 
         if let Self::Mod(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Mod);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Mod);
             return dest;
         }
 
@@ -527,7 +517,7 @@ impl Node {
         }
 
         if let Self::Return(val) = self {
-            let var = gen_and_check(&val, prep);
+            let var = gen_and_check(val, prep);
             let ret = Inst::Return(var);
             prep.insts.push(ret);
             return None;
@@ -536,20 +526,20 @@ impl Node {
         // TODO: implement generating in Node cases of Neg, Shl, Shr, ReturnVoid
 
         if let Self::Neg(val) = self {
-            let var = gen_and_check(&val, prep);
+            let var = gen_and_check(val, prep);
             let neg = Inst::Neg(prep.count, var);
-            prep.count = prep.count + 1;
+            prep.count += 1;
             prep.insts.push(neg);
             return Some(prep.count - 1);
         }
 
         if let Self::Shl(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Shl);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Shl);
             return dest;
         }
 
         if let Self::Shr(left, right) = self {
-            let dest = gen_arith_or_shift(prep, &left, &right, OpType::Shr);
+            let dest = gen_arith_or_shift(prep, left, right, OpType::Shr);
             return dest;
         }
 
@@ -572,7 +562,7 @@ pub fn generate_insts(func: &Func) -> Vec<Inst> {
     for param in func.get_params() {
         prep.vars.insert(param.clone(), prep.count);
         let inst = Inst::Parameter(prep.count);
-        prep.count = prep.count + 1;
+        prep.count += 1;
         prep.insts.push(inst);
     }
 

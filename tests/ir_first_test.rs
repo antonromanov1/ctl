@@ -22,7 +22,7 @@ fn dump(insts: Vec<Inst>) -> String {
     let mut res = String::new();
     for (i, inst) in insts.iter().enumerate() {
         res.push_str("\n        ");
-        res.push_str(&format!("{}: {}", i, inst.to_string()));
+        res.push_str(&format!("{}: {}", i, inst));
     }
 
     res

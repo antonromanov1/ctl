@@ -116,10 +116,7 @@ impl fmt::Display for Token {
 
 impl Token {
     fn should_ignore(&self) -> bool {
-        match self {
-            Token::Blank | Token::LineFeed | Token::COMMENT => true,
-            _ => false,
-        }
+        matches!(self, Token::Blank | Token::LineFeed | Token::COMMENT)
     }
 }
 
@@ -160,7 +157,7 @@ type TokenLen = usize;
 fn tokenize_symbols(input: &String) -> Result<Option<(Token, TokenLen)>, String> {
     if input.len() >= 2 {
         // Check the symbol has multilength at read-offset
-        let multilength: String = std::str::from_utf8(&input.as_bytes()[0..2]).unwrap().into();
+        let multilength: String = Some(&input[0..2]).unwrap().into();
         if let Some(t) = tokenize_multisymbols(&multilength) {
             return Ok(Some((t, 2)));
         }
@@ -191,7 +188,7 @@ fn tokenize_symbols(input: &String) -> Result<Option<(Token, TokenLen)>, String>
 }
 
 fn tokenize_keywords(
-    input: &String,
+    input: &str,
     keywords: &HashMap<&str, (Token, usize)>,
 ) -> Result<Option<(Token, TokenLen)>, String> {
     let length: TokenLen = count_len(input, |c| c.is_digit(10) || c == &'_' || c.is_alphabetic());
@@ -207,15 +204,15 @@ fn tokenize_keywords(
 }
 
 fn is_decimal(ch: char) -> bool {
-    '0' <= ch && ch <= '9'
+    ('0'..='9').contains(&ch)
 }
 
-fn count_len(input: &String, f: fn(ch: &char) -> bool) -> TokenLen {
+fn count_len(input: &str, f: fn(ch: &char) -> bool) -> TokenLen {
     input.chars().take_while(f).collect::<String>().len()
 }
 
-fn tokenize_multisymbols(input: &String) -> Option<Token> {
-    match input.as_str() {
+fn tokenize_multisymbols(input: &str) -> Option<Token> {
+    match input {
         "<<" => Some(Token::Shl),
         ">>" => Some(Token::Shr),
         "<=" => Some(Token::Le),
@@ -232,7 +229,7 @@ fn tokenize(
     keywords: &HashMap<&str, (Token, usize)>,
 ) -> Result<Option<(Token, TokenLen)>, String> {
     // return None if can not tokenize
-    if input.len() == 0 {
+    if input.is_empty() {
         return Ok(None);
     }
 
@@ -365,23 +362,23 @@ macro_rules! elements_to_string {
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Node::Add(lch, rch) => write!(f, "Add<{}, {}>", lch.to_string(), rch.to_string()),
-            Node::Sub(lch, rch) => write!(f, "Sub<{}, {}>", lch.to_string(), rch.to_string()),
-            Node::Mul(lch, rch) => write!(f, "Mul<{}, {}>", lch.to_string(), rch.to_string()),
-            Node::Div(lch, rch) => write!(f, "Div<{}, {}>", lch.to_string(), rch.to_string()),
-            Node::Mod(lch, rch) => write!(f, "Mod<{}, {}>", lch.to_string(), rch.to_string()),
+            Node::Add(lch, rch) => write!(f, "Add<{}, {}>", lch, rch),
+            Node::Sub(lch, rch) => write!(f, "Sub<{}, {}>", lch, rch),
+            Node::Mul(lch, rch) => write!(f, "Mul<{}, {}>", lch, rch),
+            Node::Div(lch, rch) => write!(f, "Div<{}, {}>", lch, rch),
+            Node::Mod(lch, rch) => write!(f, "Mod<{}, {}>", lch, rch),
 
-            Node::Ne(lch, rch) => write!(f, "Ne<{},{}>", lch.to_string(), rch.to_string()),
-            Node::Eq(lch, rch) => write!(f, "Eq<{},{}>", lch.to_string(), rch.to_string()),
-            Node::Lt(lch, rch) => write!(f, "Lt<{},{}>", lch.to_string(), rch.to_string()),
-            Node::Gt(lch, rch) => write!(f, "Gt<{},{}>", lch.to_string(), rch.to_string()),
-            Node::Le(lch, rch) => write!(f, "Le<{},{}>", lch.to_string(), rch.to_string()),
-            Node::Ge(lch, rch) => write!(f, "Ge<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Ne(lch, rch) => write!(f, "Ne<{},{}>", lch, rch),
+            Node::Eq(lch, rch) => write!(f, "Eq<{},{}>", lch, rch),
+            Node::Lt(lch, rch) => write!(f, "Lt<{},{}>", lch, rch),
+            Node::Gt(lch, rch) => write!(f, "Gt<{},{}>", lch, rch),
+            Node::Le(lch, rch) => write!(f, "Le<{},{}>", lch, rch),
+            Node::Ge(lch, rch) => write!(f, "Ge<{},{}>", lch, rch),
 
-            Node::Shl(lch, rch) => write!(f, "Shl<{},{}>", lch.to_string(), rch.to_string()),
-            Node::Shr(lch, rch) => write!(f, "Shr<{},{}>", lch.to_string(), rch.to_string()),
+            Node::Shl(lch, rch) => write!(f, "Shl<{},{}>", lch, rch),
+            Node::Shr(lch, rch) => write!(f, "Shr<{},{}>", lch, rch),
 
-            Node::Neg(ch) => write!(f, "Neg<{}>", ch.to_string()),
+            Node::Neg(child) => write!(f, "Neg<{}>", child),
 
             Node::True => write!(f, "True"),
             Node::False => write!(f, "False"),
@@ -389,10 +386,10 @@ impl fmt::Display for Node {
 
             Node::Id(name) => write!(f, "Id<{}>", name),
             Node::ReturnVoid => write!(f, "ReturnVoid"),
-            Node::Return(expr) => write!(f, "Return({})", expr.to_string()),
+            Node::Return(expr) => write!(f, "Return({})", expr),
 
-            Node::Let(name, expr) => write!(f, "Let {} = {}", name, expr.to_string()),
-            Node::Assign(id, expr) => write!(f, "Assign<{}>({})", id, expr.to_string()),
+            Node::Let(name, expr) => write!(f, "Let {} = {}", name, expr),
+            Node::Assign(id, expr) => write!(f, "Assign<{}>({})", id, expr),
 
             Node::Block(stmts) => {
                 let elements = elements_to_string!(stmts);
@@ -404,24 +401,13 @@ impl fmt::Display for Node {
             }
 
             Node::While(cond, stmts) => {
-                write!(
-                    f,
-                    "While {}:\n\t\t{}",
-                    cond.to_string(),
-                    (*stmts).to_string()
-                )
+                write!(f, "While {}:\n\t\t{}", cond, (*stmts))
             }
             Node::Break => write!(f, "Break"),
 
             Node::If(cond, stmts, alter) => match alter {
-                Some(alt) => write!(
-                    f,
-                    "IF<{},{}> ELSE<{}>",
-                    cond.to_string(),
-                    stmts.to_string(),
-                    alt.to_string()
-                ),
-                None => write!(f, "IF<{},{}>", cond.to_string(), stmts.to_string()),
+                Some(alt) => write!(f, "IF<{},{}> ELSE<{}>", cond, stmts, alt),
+                None => write!(f, "IF<{},{}>", cond, stmts),
             },
 
             Node::Invalid => std::unreachable!(),
@@ -455,7 +441,7 @@ pub fn dump_ast(funcs: &[Func]) {
     for f in funcs.iter() {
         println!("Function {}", f.name);
         for st in f.stmts.iter() {
-            println!("\t{}", st.to_string());
+            println!("\t{}", st);
         }
     }
 }
@@ -480,7 +466,7 @@ struct Parser {
 impl Parser {
     fn new(tokens: Vec<Token>) -> Parser {
         Parser {
-            tokens: tokens,
+            tokens,
             funcs: Vec::with_capacity(100),
             cur_variables: HashSet::new(),
             return_type: false,
@@ -528,7 +514,7 @@ impl Parser {
                     return Err("Undefined token after id".to_string());
                 }
 
-                return self.parse_call(name.clone());
+                self.parse_call(name)
             }
 
             Token::LBrace => self.parse_block(),
@@ -541,7 +527,7 @@ impl Parser {
             }
 
             Token::If => self.parse_if(),
-            _ => Err(format!("statement can't start with '{}'", t.to_string())),
+            _ => Err(format!("statement can't start with '{}'", t)),
         }
     }
 
@@ -666,7 +652,7 @@ impl Parser {
         if !self.return_type {
             return Err(format!(
                 "Function with no return type returns value: {}",
-                expr.to_string()
+                expr
             ));
         }
 
@@ -863,7 +849,7 @@ impl Parser {
 
                     _ => {
                         if self.cur_variables.contains(&name) {
-                            return Ok(Node::Id(name));
+                            Ok(Node::Id(name))
                         } else {
                             return Err(format!("Use of undeclared variable {}", name));
                         }
@@ -871,7 +857,7 @@ impl Parser {
                 }
             }
 
-            _ => Err(format!("term can't start with '{}'", t.to_string())),
+            _ => Err(format!("term can't start with '{}'", t)),
         }
     }
 
@@ -893,11 +879,7 @@ impl Parser {
             self.go_next_token();
             return Ok(());
         }
-        Err(format!(
-            "expected {} but got '{}'",
-            t.to_string(),
-            cur.to_string()
-        ))
+        Err(format!("expected {} but got '{}'", t, cur))
     }
 
     fn consume(&mut self, t: &Token) -> bool {
@@ -918,7 +900,7 @@ impl Parser {
                 Ok(Token::I64)
             }
 
-            _ => Err(format!("got {}, it's not a type name ", t.to_string())),
+            _ => Err(format!("got {}, it's not a type name ", t)),
         }
     }
 
@@ -926,9 +908,9 @@ impl Parser {
         let t: Token = self.get_token();
         if let Token::Id(name) = t {
             self.go_next_token();
-            Ok(name.to_string())
+            Ok(name)
         } else {
-            Err(format!("expected identifier but got '{}'", t.to_string()))
+            Err(format!("expected identifier but got '{}'", t))
         }
     }
 
