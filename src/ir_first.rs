@@ -40,6 +40,7 @@ impl fmt::Display for Cc {
 // Variable number
 type Var = u16;
 
+// TODO: replace type u16 with u64
 // Branch target which is an instructions number
 type Target = u16;
 
@@ -132,12 +133,14 @@ fn find_dest(variables: &HashMap<String, u16>, name: &String) -> u16 {
 // insts - already generated instructions
 // vars  - map (variable name from AST -> variable number in the IR)
 // count - number of variables
-// whiles - vector of vectors of numbers of Goto (break) instructions.
+// breaks - vector of vectors of indexes (in `insts` vector) of Goto (break) instructions.
+// cur_loop - index of first instruction of the currently handling loop.
 struct Prepare {
     insts: Vec<Inst>,
     vars: HashMap<String, u16>,
     count: u16,
-    whiles: Vec<Vec<usize>>,
+    breaks: Vec<Vec<usize>>,
+    cur_loop: u16,
 }
 
 impl Prepare {
@@ -146,7 +149,10 @@ impl Prepare {
             insts: Vec::new(),
             vars: HashMap::new(),
             count: 0,
-            whiles: Vec::new(),
+            breaks: Vec::new(),
+
+            // Invalid value at the begining
+            cur_loop: u16::MAX,
         }
     }
 }
@@ -326,7 +332,7 @@ fn generate_if(prep: &mut Prepare, cond: &Node, block: &Node, alter: &Option<Box
 
 fn set_breaks(prep: &mut Prepare) {
     let after_last: u16 = prep.insts.len().try_into().unwrap();
-    for (_index, break_) in prep.whiles.last().unwrap().iter().enumerate() {
+    for break_ in prep.breaks.last().unwrap().iter() {
         debug_assert!(matches!(prep.insts[*break_], Inst::Goto { .. }));
         prep.insts[*break_] = Inst::Goto(after_last);
     }
@@ -346,22 +352,24 @@ fn set_breaks(prep: &mut Prepare) {
 // goto 1
 // 2 Next instruction
 //
-// Every element of Prepare's whiles vector is a vector of numbers of the
+// Every element of Prepare's breaks vector is a vector of numbers of the
 // generated Goto (Break) instructions. At the end of generating while cycle we have to go through
 // the last vector and write target instructions (which is instruction after the last instruction)
 // to these Goto's. At the begining of the generating while we push a new vector there and
 // pop at the end.
 fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
     // (1) Push vector of breaks for this cycle
-    prep.whiles.push(Vec::new());
+    prep.breaks.push(Vec::new());
 
     // (2) Generate operands of the comparison, compute the condition code
     let (op1, op2, cc) = gen_operands_cc(prep, cond);
 
-    // (3) Create empty IfFalse instruction, add it to the vector and remember its position
+    // (3) Create IfFalse instruction with no target, add it to the vector and remember its position
     //     in order to write the target instruction later after generating instructions for the
-    //     block
+    //     block. Remember previous loop position in `old_loop`. Set current loop position.
     let if_index = push_part_if_get_index(prep, op1, op2, cc);
+    let old_loop = prep.cur_loop;
+    prep.cur_loop = if_index.try_into().unwrap();
 
     // (4) Generate IR instructions for the block.
     block.generate(prep);
@@ -382,21 +390,33 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
     set_breaks(prep);
 
     // (7) Pop vector of breaks for this cycle
-    let breaks = prep.whiles.pop();
+    let breaks = prep.breaks.pop();
     debug_assert!(matches!(breaks, Some { .. }));
+
+    // (8) Save remembered previous loop
+    prep.cur_loop = old_loop;
 }
 
+// Steps made in this function are described in function `generate_while` therefore these are not
+// given here.
 fn generate_infinite_loop(prep: &mut Prepare, block: &Node) {
-    prep.whiles.push(Vec::new());
+    prep.breaks.push(Vec::new());
 
-    let while_begin: u16 = prep.insts.len().try_into().unwrap();
+    let loop_begin: u16 = prep.insts.len().try_into().unwrap();
+    let old_loop = prep.cur_loop;
+    prep.cur_loop = loop_begin;
+
     block.generate(prep);
-    let goto = Inst::Goto(while_begin);
+
+    let goto = Inst::Goto(loop_begin);
     prep.insts.push(goto);
 
     set_breaks(prep);
-    let breaks = prep.whiles.pop();
+    let breaks = prep.breaks.pop();
     debug_assert!(matches!(breaks, Some { .. }));
+
+    // Save remembered previous loop
+    prep.cur_loop = old_loop;
 }
 
 fn generate_call(
@@ -495,9 +515,16 @@ impl Node {
         }
 
         if let Self::Break = self {
-            debug_assert!(!prep.whiles.is_empty());
+            debug_assert!(!prep.breaks.is_empty());
             let goto = Inst::Goto(u16::MAX);
-            prep.whiles.last_mut().unwrap().push(prep.insts.len());
+            prep.breaks.last_mut().unwrap().push(prep.insts.len());
+            prep.insts.push(goto);
+
+            return None;
+        }
+
+        if let Self::Continue = self {
+            let goto = Inst::Goto(prep.cur_loop);
             prep.insts.push(goto);
 
             return None;

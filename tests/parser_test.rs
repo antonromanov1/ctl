@@ -341,7 +341,7 @@ fn parsing_if_two_blocks() {
 }
 
 #[test]
-fn parsing_while() {
+fn parsing_infinite_while_with_break() {
     let source = "
     fn main() {
         while (true) {
@@ -356,6 +356,29 @@ fn parsing_while() {
 
     // Create expected nodes
     let block = Node::Block(Box::new(vec![Node::Break]));
+    let while_ = Node::While(Box::new(Node::True), Box::new(block));
+
+    // Compare the parsed nodes with the expected ones
+    assert_eq!(funcs.len(), 1);
+    assert_eq!(*funcs[0].get_stmts(), vec![while_]);
+}
+
+#[test]
+fn parsing_infinite_while_with_continue() {
+    let source = "
+    fn main() {
+        while (true) {
+            continue;
+        }
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+
+    // Create expected nodes
+    let block = Node::Block(Box::new(vec![Node::Continue]));
     let while_ = Node::While(Box::new(Node::True), Box::new(block));
 
     // Compare the parsed nodes with the expected ones

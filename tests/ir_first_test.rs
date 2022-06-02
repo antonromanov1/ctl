@@ -308,6 +308,8 @@ fn generate_conditional_branch_with_returns() {
     assert_eq!(dump, expected);
 }
 
+// TODO: eliminate calling clone, instead call push_str
+
 #[test]
 fn generate_conditional_loop() {
     let source = "
@@ -459,6 +461,197 @@ fn generate_conditional_loop_with_break() {
 
     // Return void
     expected = expected.clone() + "11: ReturnVoid";
+
+    // Compare generated instructions with the expected ones
+    assert_eq!(dump, expected);
+}
+
+#[test]
+fn generate_conditional_loop_with_continues() {
+    let source = "
+    fn main() {
+        let mut a: i64 = 0;
+
+        while (a == 1) {
+            a = a + 1;
+            if (a == 4) {
+                continue;
+            }
+
+            if (a == 3) {
+                continue;
+            }
+        }
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+    assert_eq!(funcs.len(), 1);
+
+    // Generate IR instructions
+    let insts = generate_insts(&funcs[0]);
+    assert!(!insts.is_empty());
+
+    // Dump these to a string
+    let dump = dump(insts);
+
+    // Create expected dump
+
+    // let mut a: i64 = 0;
+    // v0 is a
+    let mut expected = "
+        0: MoveImm v1, 0
+        1: Move v0, v1
+        "
+    .to_string();
+
+    // while (a == 1) {
+    //     a = a + 1;
+    expected = expected.clone()
+        + "2: MoveImm v2, 1
+        3: IfFalse v0 == v2, goto 14
+        4: MoveImm v3, 1
+        5: v4 = Add(v0, v3)
+        6: Move v0, v4
+        ";
+
+    // if (a == 4) {
+    //     continue;
+    // }
+    expected = expected.clone()
+        + "7: MoveImm v5, 4
+        8: IfFalse v0 == v5, goto 10
+        9: Goto 3
+        ";
+
+    // if (a == 3) {
+    //     continue;
+    // }
+    expected = expected.clone()
+        + "10: MoveImm v6, 3
+        11: IfFalse v0 == v6, goto 13
+        12: Goto 3
+        ";
+
+    // Go back at the begining of the loop's block
+    expected = expected.clone()
+        + "13: Goto 3
+        ";
+
+    expected = expected.clone() + "14: ReturnVoid";
+
+    // Compare generated instructions with the expected ones
+    assert_eq!(dump, expected);
+}
+
+#[test]
+fn generate_conditional_nested_loops_with_continues() {
+    let source = "
+    fn main() {
+        let mut a: i64 = 0;
+        let mut b: i64 = 128;
+
+        while (a < 8) {
+            a = a + 1;
+
+            if (a == 3) {
+                continue;
+            }
+
+            while (b > 0) {
+                b = b - 1;
+
+                if (b == 4) {
+                    continue;
+                }
+            }
+
+        }
+    }
+    "
+    .to_string();
+
+    // Parse source into the AST nodes
+    let funcs = parse(source).unwrap();
+    assert_eq!(funcs.len(), 1);
+
+    // Generate IR instructions
+    let insts = generate_insts(&funcs[0]);
+    assert!(!insts.is_empty());
+
+    // Dump these to a string
+    let dump = dump(insts);
+
+    // Create expected dump
+
+    // let mut a: i64 = 0;
+    // let mut b: i64 = 128;
+    let mut expected = "
+        0: MoveImm v1, 0
+        1: Move v0, v1
+        2: MoveImm v3, 128
+        3: Move v2, v3
+        "
+    .to_string();
+
+    // while (a < 8) {
+    //     a = a + 1;
+    expected.push_str(
+        "4: MoveImm v4, 8
+        5: IfFalse v0 < v4, goto 22
+        6: MoveImm v5, 1
+        7: v6 = Add(v0, v5)
+        8: Move v0, v6
+        ",
+    );
+
+    // if (a == 3) {
+    //     continue;
+    // }
+    expected.push_str(
+        "9: MoveImm v7, 3
+        10: IfFalse v0 == v7, goto 12
+        11: Goto 5
+        ",
+    );
+
+    // Inner loop
+    // while (b > 0) {
+    //     b = b - 1;
+    expected.push_str(
+        "12: MoveImm v8, 0
+        13: IfFalse v2 > v8, goto 21
+        14: MoveImm v9, 1
+        15: v10 = Sub(v2, v9)
+        16: Move v2, v10
+        ",
+    );
+
+    // if (b == 4) {
+    //     continue;
+    // }
+    expected.push_str(
+        "17: MoveImm v11, 4
+        18: IfFalse v2 == v11, goto 20
+        19: Goto 13
+        ",
+    );
+
+    // Go back to the comparison of the inner loop
+    expected.push_str(
+        "20: Goto 13
+        ",
+    );
+
+    // Go back to the comparison of the outer loop
+    expected.push_str(
+        "21: Goto 5
+        ",
+    );
+
+    expected.push_str("22: ReturnVoid");
 
     // Compare generated instructions with the expected ones
     assert_eq!(dump, expected);

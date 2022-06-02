@@ -48,6 +48,7 @@ pub enum Token {
     Else,
     While,
     Break,
+    Continue,
     Let,
     Mut,
     I64,
@@ -105,6 +106,7 @@ impl fmt::Display for Token {
             Token::Else => write!(f, "Else"),
             Token::While => write!(f, "While"),
             Token::Break => write!(f, "Break"),
+            Token::Continue => write!(f, "Continue"),
             Token::Let => write!(f, "Let"),
             Token::Mut => write!(f, "Mutable"),
             Token::I64 => write!(f, "i64"),
@@ -135,6 +137,7 @@ fn build_keywords() -> HashMap<&'static str, (Token, usize)> {
     const MUT: &str = "mut";
     const WHILE: &str = "while";
     const BREAK: &str = "break";
+    const CONTINUE: &str = "continue";
 
     let mut keywords: HashMap<&str, (Token, usize)> = HashMap::with_capacity(12);
     keywords.insert(RETURN, (Token::Return, RETURN.len()));
@@ -148,6 +151,7 @@ fn build_keywords() -> HashMap<&'static str, (Token, usize)> {
     keywords.insert(MUT, (Token::Mut, MUT.len()));
     keywords.insert(WHILE, (Token::While, WHILE.len()));
     keywords.insert(BREAK, (Token::Break, BREAK.len()));
+    keywords.insert(CONTINUE, (Token::Continue, CONTINUE.len()));
 
     keywords
 }
@@ -338,6 +342,7 @@ pub enum Node {
     If(Condition, BlockNode, Alter),
     While(Condition, BlockNode),
     Break,
+    Continue,
     Block(Elements),
     ReturnVoid,
     Return(Expr),
@@ -404,6 +409,7 @@ impl fmt::Display for Node {
                 write!(f, "While {}:\n\t\t{}", cond, (*stmts))
             }
             Node::Break => write!(f, "Break"),
+            Node::Continue => write!(f, "Continue"),
 
             Node::If(cond, stmts, alter) => match alter {
                 Some(alt) => write!(f, "IF<{},{}> ELSE<{}>", cond, stmts, alt),
@@ -524,6 +530,11 @@ impl Parser {
                 self.go_next_token();
                 self.expect(&Token::Semi)?;
                 Ok(Node::Break)
+            }
+            Token::Continue => {
+                self.go_next_token();
+                self.expect(&Token::Semi)?;
+                Ok(Node::Continue)
             }
 
             Token::If => self.parse_if(),

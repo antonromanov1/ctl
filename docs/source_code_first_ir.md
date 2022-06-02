@@ -205,6 +205,45 @@ generated to:
 1. ReturnVoid
 ```
 
+4)
+
+```rust
+fn main() {
+    let mut a: i64 = 0;
+    while (a < 9) {
+        a = a + 1;
+        if (a == 23) {
+            continue;
+        }
+    }
+}
+```
+
+generated to:
+
+```
+0. MoveImm v1, 0
+1. Move v0, v1
+
+2. MoveImm v2, 9
+
+// Loop
+3. IfFalse v0 < v2, goto 11
+4. MoveImm v3, 1
+5. v4 = Add(v0, v3)
+6. Move v0, v4
+
+7. MoveImm v5, 23
+
+// Conditional branch with `continue`
+8. IfFalse v0 == v5, goto 10
+9. Goto 3
+
+10. Goto 3
+
+11. ReturnVoid
+```
+
 ### Calls
 
 1)
