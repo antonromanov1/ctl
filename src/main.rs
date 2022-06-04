@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use ctl::ir_first::generate_insts;
+use ctl::padawan::generate_insts;
 use ctl::parser::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse the contents
     let funcs = parse(contents)?;
 
-    // Generate IR first for each function and dump it to the stdout
+    // Generate padawan for each function and dump it to the stdout
     for func in funcs {
         let insts = generate_insts(&func);
 

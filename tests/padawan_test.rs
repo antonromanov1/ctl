@@ -1,5 +1,5 @@
-use ctl::ir_first::generate_insts;
-use ctl::ir_first::Inst;
+use ctl::padawan::generate_insts;
+use ctl::padawan::Inst;
 use ctl::parser::parse;
 
 #[test]

@@ -1,6 +1,6 @@
-//! First intermediate representation (IR)
+//! First intermediate representation (IR) called padawan
 //!
-//! This module provides generating of first IR from AST.
+//! This module provides generating of padawan from AST.
 
 use crate::parser::Func;
 use crate::parser::Node;
@@ -127,7 +127,7 @@ fn find_dest(variables: &HashMap<String, u16>, name: &String) -> u16 {
     *dest.unwrap()
 }
 
-// Structure which is used during generating first IR.
+// Structure which is used during generating padawan IR.
 // insts - already generated instructions
 // vars  - map (variable name from AST -> variable number in the IR)
 // count - number of variables

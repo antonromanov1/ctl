@@ -1,4 +1,4 @@
-# CTL language of source (input data) code and first IR
+# CTL language of source (input data) code and the padawan IR
 
 CTL's parser gets text of source code. This source is (or almost is) a valid
 Rust source code.

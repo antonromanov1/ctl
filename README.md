@@ -21,7 +21,7 @@ language (e.g. assembly language, object code, or machine code) to create
 an executable program.
 
 A compiler is likely to perform some or all of the following operations, often called
-**phases**: preprocessing, lexical analysis, parsing, semantic analysis (syntax-directed
+**phases**: preprocessing, lexical analysis, **parsing**, semantic analysis (syntax-directed
 translation), conversion of input programs to an **intermediate representation**,
 code optimization and code generation.
 
@@ -39,8 +39,8 @@ cargo test
 
 ## Features
 
-You can explore what source code CTL can handle in the [docs](./docs/ir_first_examples.md).
+You can explore what source code CTL can handle in the [docs](./docs/padawan_examples.md).
 
 * **Parsing**. CTL can parse a source code written in a subset of Rust. One can get familiar with the
 language in `tests/parser_test.rs`
-* **Generating IR**. It can generate IR (as a sequence of instructions) from the AST. This IR is called *first IR*.
+* **Generating IR**. It can generate IR (as a sequence of instructions) from the AST. This IR is called *padawan.
