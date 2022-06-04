@@ -11,7 +11,7 @@
 <strong>CTL</strong> is a program which parses source code (written in Rust's subset)
 and generates an intermediate code from it.
 
-## Introduction to the compilers (from Wikipedia)
+### Introduction to the compilers (from Wikipedia)
 
 A **compiler** is a computer program that translates computer code
 written in one programming language (the source language) into another language
@@ -24,6 +24,10 @@ A compiler is likely to perform some or all of the following operations, often c
 **phases**: preprocessing, lexical analysis, **parsing**, semantic analysis (syntax-directed
 translation), conversion of input programs to an **intermediate representation**,
 code optimization and code generation.
+
+![CTL common diagram](assets/ctl_common_diagram.png)
+
+**padawan** is an intermediate representation (IR).
 
 ## Build and test
 
@@ -43,4 +47,4 @@ You can explore what source code CTL can handle in the [docs](./docs/padawan_exa
 
 * **Parsing**. CTL can parse a source code written in a subset of Rust. One can get familiar with the
 language in `tests/parser_test.rs`
-* **Generating IR**. It can generate IR (as a sequence of instructions) from the AST. This IR is called *padawan.
+* **Generating IR**. It can generate IR (as a sequence of instructions) from the AST.
