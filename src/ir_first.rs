@@ -6,7 +6,6 @@ use crate::parser::Func;
 use crate::parser::Node;
 
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 // Condition code
 #[derive(Debug, PartialEq)]
@@ -40,9 +39,8 @@ impl fmt::Display for Cc {
 // Variable number
 type Var = u16;
 
-// TODO: replace type u16 with u64
 // Branch target which is an instructions number
-type Target = u16;
+type Target = u64;
 
 // #[derive(Debug, PartialEq)]
 pub enum Inst {
@@ -140,7 +138,7 @@ struct Prepare {
     vars: HashMap<String, u16>,
     count: u16,
     breaks: Vec<Vec<usize>>,
-    cur_loop: u16,
+    cur_loop: u64,
 }
 
 impl Prepare {
@@ -152,7 +150,7 @@ impl Prepare {
             breaks: Vec::new(),
 
             // Invalid value at the begining
-            cur_loop: u16::MAX,
+            cur_loop: u64::MAX,
         }
     }
 }
@@ -274,7 +272,7 @@ fn gen_operands_cc(prep: &mut Prepare, cond: &Node) -> (Var, Var, Cc) {
 
 // Push partly set IfFalse instruction and get index of it
 fn push_part_if_get_index(prep: &mut Prepare, op1: Var, op2: Var, cc: Cc) -> usize {
-    let if_false = Inst::IfFalse(op1, op2, cc, u16::MAX);
+    let if_false = Inst::IfFalse(op1, op2, cc, u64::MAX);
     let if_index = prep.insts.len();
     prep.insts.push(if_false);
     if_index
@@ -310,15 +308,15 @@ fn generate_if(prep: &mut Prepare, cond: &Node, block: &Node, alter: &Option<Box
 
     // (4) Compute target IR instruction of this If Node. If there is a false successor then
     //     create a Goto and generate instructions for false successor.
-    let mut if_target = prep.insts.len().try_into().unwrap();
+    let mut if_target = prep.insts.len() as u64;
     if let Some(block_ptr) = alter {
-        let goto = Inst::Goto(u16::MAX);
+        let goto = Inst::Goto(u64::MAX);
         let goto_index = prep.insts.len();
         prep.insts.push(goto);
         if_target += 1;
 
         (*block_ptr).generate(prep);
-        let goto = Inst::Goto(prep.insts.len().try_into().unwrap());
+        let goto = Inst::Goto(prep.insts.len() as u64);
         prep.insts[goto_index] = goto;
     }
 
@@ -331,7 +329,7 @@ fn generate_if(prep: &mut Prepare, cond: &Node, block: &Node, alter: &Option<Box
 }
 
 fn set_breaks(prep: &mut Prepare) {
-    let after_last: u16 = prep.insts.len().try_into().unwrap();
+    let after_last = prep.insts.len() as u64;
     for break_ in prep.breaks.last().unwrap().iter() {
         debug_assert!(matches!(prep.insts[*break_], Inst::Goto { .. }));
         prep.insts[*break_] = Inst::Goto(after_last);
@@ -369,20 +367,20 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
     //     block. Remember previous loop position in `old_loop`. Set current loop position.
     let if_index = push_part_if_get_index(prep, op1, op2, cc);
     let old_loop = prep.cur_loop;
-    prep.cur_loop = if_index.try_into().unwrap();
+    prep.cur_loop = if_index as u64;
 
     // (4) Generate IR instructions for the block.
     block.generate(prep);
 
     // (5) Insert the goto on the begining of the block.
-    let goto_begin = Inst::Goto(if_index.try_into().unwrap());
+    let goto_begin = Inst::Goto(if_index as u64);
     prep.insts.push(goto_begin);
 
     // (6) Compute target instruction of the IfFalse instruction. Write it to the already created
     //     in step 2 IfFalse.
-    let if_target = prep.insts.len().try_into().unwrap();
+    let if_target = prep.insts.len();
     if let Inst::IfFalse(_, _, _, ref mut target) = prep.insts[if_index] {
-        *target = if_target;
+        *target = if_target as u64;
     } else {
         std::unreachable!("Instruction with index {} is not IfFalse", if_index);
     }
@@ -402,7 +400,7 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
 fn generate_infinite_loop(prep: &mut Prepare, block: &Node) {
     prep.breaks.push(Vec::new());
 
-    let loop_begin: u16 = prep.insts.len().try_into().unwrap();
+    let loop_begin = prep.insts.len() as u64;
     let old_loop = prep.cur_loop;
     prep.cur_loop = loop_begin;
 
@@ -516,7 +514,7 @@ impl Node {
 
         if let Self::Break = self {
             debug_assert!(!prep.breaks.is_empty());
-            let goto = Inst::Goto(u16::MAX);
+            let goto = Inst::Goto(u64::MAX);
             prep.breaks.last_mut().unwrap().push(prep.insts.len());
             prep.insts.push(goto);
 
@@ -549,8 +547,6 @@ impl Node {
             prep.insts.push(ret);
             return None;
         }
-
-        // TODO: implement generating in Node cases of Neg, Shl, Shr, ReturnVoid
 
         if let Self::Neg(val) = self {
             let var = gen_and_check(val, prep);
