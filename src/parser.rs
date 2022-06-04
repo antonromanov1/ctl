@@ -483,20 +483,20 @@ impl Parser {
 
     // Parse whole parsing source code
     fn top_level(&mut self) -> ParseResult<()> {
-        let mut funcs = Vec::with_capacity(100);
+        debug_assert!(self.funcs.is_empty());
 
         loop {
             let t: &Token = self.cur_token();
 
             match t {
                 &Token::Func => {
-                    funcs.push(self.parse_func()?);
+                    let cur = self.parse_func()?;
+                    self.funcs.push(cur);
                 }
                 _ => break,
             }
         }
 
-        self.funcs = funcs;
         Ok(())
     }
 
@@ -691,6 +691,8 @@ impl Parser {
             }
         }
 
+        self.check_call(&name, args.len())?;
+
         self.expect(&Token::Semi)?;
         Ok(Node::Call(name, Box::new(args), false))
     }
@@ -843,7 +845,9 @@ impl Parser {
                 self.go_next_token();
                 let t: Token = self.get_token();
                 match t {
+                    // Call case
                     Token::LParent => {
+                        // TODO: refactor using call of `parse_call`
                         self.expect(&Token::LParent)?;
                         let mut args: Vec<Node> = Vec::new();
 
@@ -854,6 +858,8 @@ impl Parser {
                                 break;
                             }
                         }
+
+                        self.check_call(&name, args.len())?;
 
                         Ok(Node::Call(name, Box::new(args), true))
                     }
@@ -967,6 +973,40 @@ impl Parser {
             return true;
         }
         false
+    }
+
+    fn check_call(&self, name: &str, args_len: usize) -> Result<(), String> {
+        for func in &self.funcs {
+            if func.name.as_str() != name {
+                continue;
+            }
+
+            if func.params.len() != args_len {
+                return Err(format!(
+                    "Function {} takes {} arguments but {} was given",
+                    name,
+                    func.params.len(),
+                    args_len
+                ));
+            } else {
+                return Ok(());
+            }
+        }
+
+        const PRINT_ARGS_LEN: usize = 1;
+        // Should be a built-in function
+        if name == "print" {
+            if args_len == PRINT_ARGS_LEN {
+                return Ok(());
+            } else {
+                return Err(format!(
+                    "Function print takes 1 argument but {} was given",
+                    args_len
+                ));
+            }
+        }
+
+        Err(format!("No function named {} defined", name))
     }
 }
 

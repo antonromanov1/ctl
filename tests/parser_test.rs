@@ -389,11 +389,13 @@ fn parsing_infinite_while_with_continue() {
 #[test]
 fn parsing_call_separately() {
     let source = "
+    fn out(p0: i64, p1: i64, p2: i64) {}
+
     fn main() {
         let mut num: i64 = 0;
         let mut other: i64 = 0;
 
-        print(num, other, 1 + 1);
+        out(num, other, 1 + 1);
     }
     "
     .to_string();
@@ -409,16 +411,18 @@ fn parsing_call_separately() {
     let add = Node::Add(Box::new(num1), Box::new(num2));
     let id1 = Node::Id("num".to_string());
     let id2 = Node::Id("other".to_string());
-    let call = Node::Call("print".to_string(), Box::new(vec![id1, id2, add]), false);
+    let call = Node::Call("out".to_string(), Box::new(vec![id1, id2, add]), false);
 
     // Compare the parsed nodes with the expected ones
-    assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let1, let2, call]);
+    assert_eq!(funcs.len(), 2);
+    assert_eq!(*funcs[1].get_stmts(), vec![let1, let2, call]);
 }
 
 #[test]
 fn parsing_call_as_expression() {
     let source = "
+    fn calc() {}
+
     fn main() {
         let mut num: i64 = 0;
         num = calc() + 1;
@@ -437,8 +441,8 @@ fn parsing_call_as_expression() {
     let assign = Node::Assign("num".to_string(), Box::new(add));
 
     // Compare the parsed nodes with the expected ones
-    assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
+    assert_eq!(funcs.len(), 2);
+    assert_eq!(*funcs[1].get_stmts(), vec![let_, assign]);
 }
 
 #[test]
@@ -537,4 +541,60 @@ fn parsing_two_functions() {
     assert_eq!(*funcs[0].get_stmts(), vec![]);
     assert_eq!(*funcs[1].get_stmts(), vec![]);
     assert_eq!(*funcs[0].get_params(), vec![param]);
+}
+
+#[test]
+fn parsing_func_does_not_exist() {
+    let source = "
+    fn main() {
+        smth();
+    }
+    "
+    .to_string();
+
+    let funcs = parse(source);
+    match funcs {
+        Err(mes) => assert_eq!(mes, "No function named smth defined".to_string()),
+        _ => std::unreachable!(),
+    };
+}
+
+#[test]
+fn parsing_func_print_args_len_differ() {
+    let source = "
+    fn main() {
+        print();
+    }
+    "
+    .to_string();
+
+    let funcs = parse(source);
+    match funcs {
+        Err(mes) => assert_eq!(
+            mes,
+            "Function print takes 1 argument but 0 was given".to_string()
+        ),
+        _ => std::unreachable!(),
+    };
+}
+
+#[test]
+fn parsing_func_args_len_differ() {
+    let source = "
+    fn smth(p: i64) {}
+
+    fn main() {
+        smth();
+    }
+    "
+    .to_string();
+
+    let funcs = parse(source);
+    match funcs {
+        Err(mes) => assert_eq!(
+            mes,
+            "Function smth takes 1 arguments but 0 was given".to_string()
+        ),
+        _ => std::unreachable!(),
+    };
 }

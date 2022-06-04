@@ -777,7 +777,7 @@ fn generate_nested_infinite_loops() {
 fn generate_call_no_arguments() {
     let source = "
     fn main() {
-        print();
+        print(0);
     }
     "
     .to_string();
@@ -795,8 +795,9 @@ fn generate_call_no_arguments() {
 
     // Create expected dump
     let expected = "
-        0: Call print, args: 
-        1: ReturnVoid"
+        0: MoveImm v0, 0
+        1: Call print, args: v0
+        2: ReturnVoid"
         .to_string();
 
     // Compare generated instructions with the expected ones
@@ -806,18 +807,20 @@ fn generate_call_no_arguments() {
 #[test]
 fn generate_call_few_arguments() {
     let source = "
+    fn abc(p1: i64, p2: i64) {}
+
     fn main() {
-        print(1, 2);
+        abc(1, 2);
     }
     "
     .to_string();
 
     // Parse source into the AST nodes
     let funcs = parse(source).unwrap();
-    assert_eq!(funcs.len(), 1);
+    assert_eq!(funcs.len(), 2);
 
     // Generate IR instructions
-    let insts = generate_insts(&funcs[0]);
+    let insts = generate_insts(&funcs[1]);
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -827,7 +830,7 @@ fn generate_call_few_arguments() {
     let expected = "
         0: MoveImm v0, 1
         1: MoveImm v1, 2
-        2: Call print, args: v0, v1
+        2: Call abc, args: v0, v1
         3: ReturnVoid"
         .to_string();
 
@@ -838,6 +841,8 @@ fn generate_call_few_arguments() {
 #[test]
 fn generate_call_as_expression() {
     let source = "
+    fn calc(param: i64) -> i64 {}
+
     fn main() {
         let mut num: i64 = calc(0);
     }
@@ -846,10 +851,10 @@ fn generate_call_as_expression() {
 
     // Parse source into the AST nodes
     let funcs = parse(source).unwrap();
-    assert_eq!(funcs.len(), 1);
+    assert_eq!(funcs.len(), 2);
 
     // Generate IR instructions
-    let insts = generate_insts(&funcs[0]);
+    let insts = generate_insts(&funcs[1]);
     assert!(!insts.is_empty());
 
     // Dump these to a string
