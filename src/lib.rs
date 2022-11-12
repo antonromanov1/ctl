@@ -1,2 +1,3 @@
-pub mod ir_first;
+pub mod ir;
+pub mod ir_builder;
 pub mod parser;

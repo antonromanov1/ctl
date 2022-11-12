@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use ctl::ir_first::generate_insts;
+use ctl::ir_builder::generate_ir;
 use ctl::parser::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,17 +20,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse the contents
     let funcs = parse(contents)?;
 
-    // Generate IR first for each function and dump it to the stdout
+    // Generate IR for each function and dump it to the stdout
     for func in funcs {
-        let insts = generate_insts(&func);
+        let ir = generate_ir(&func);
+        let insts = ir.get_insts();
 
         println!(
             "Function {}, {} instructions:",
             func.get_name(),
             insts.len()
         );
-        for (i, inst) in insts.iter().enumerate() {
-            println!("{}. {}", i, inst);
+        for inst in insts {
+            println!("{}", inst);
         }
         println!();
     }

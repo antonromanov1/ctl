@@ -39,8 +39,8 @@ cargo test
 
 ## Features
 
-You can explore what source code CTL can handle in the [docs](./docs/ir_first_examples.md).
+You can explore what source code CTL can handle in the [docs](./docs/language_and_ir.md).
 
 * **Parsing**. CTL can parse a source code written in a subset of Rust. One can get familiar with the
 language in `tests/parser_test.rs`
-* **Generating IR**. It can generate IR (as a sequence of instructions) from the AST. This IR is called *first IR*.
+* **Generating IR**. It can generate IR (as a sequence of instructions) from the AST.

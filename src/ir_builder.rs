@@ -1,161 +1,59 @@
-//! First intermediate representation (IR)
-//!
-//! This module provides generating of first IR from AST.
+//! This module provides generating of intermediate representation from abstract
+//! syntax tree
 
-use crate::parser::Func;
+use crate::ir;
+use crate::ir::Cc;
+use crate::ir::Id;
+use crate::ir::Inst;
+use crate::ir::Operand;
+use crate::ir::Value;
+
+use crate::parser;
 use crate::parser::Node;
 
 use std::collections::HashMap;
 
-// Condition code
-#[derive(Debug, PartialEq)]
-pub enum Cc {
-    Eq,
-    Ne,
-    Lt,
-    Gt,
-    Le,
-    Ge,
-
-    Invalid,
-}
-
-use std::fmt;
-
-impl fmt::Display for Cc {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Eq => write!(f, "=="),
-            Self::Ne => write!(f, "!="),
-            Self::Lt => write!(f, "<"),
-            Self::Gt => write!(f, ">"),
-            Self::Le => write!(f, "<="),
-            Self::Ge => write!(f, ">="),
-            Self::Invalid => std::unreachable!(),
-        }
-    }
-}
-
-// Variable number
-type Var = u16;
-
-// Branch target which is an instructions number
-type Target = u64;
-
-// #[derive(Debug, PartialEq)]
-pub enum Inst {
-    Parameter(Var),
-
-    // Move immediate value
-    MoveImm(Var, i64),
-    Move(Var, Var),
-
-    // Arithmetic binary instructions.
-    // Destination, source 1, source 2
-    Add(Var, Var, Var),
-    Sub(Var, Var, Var),
-    Mul(Var, Var, Var),
-    Div(Var, Var, Var),
-    Mod(Var, Var, Var),
-
-    // Negating instruction.
-    // Destination, source
-    Neg(Var, Var),
-
-    // Shifts.
-    // Destination, source 1, source 2
-    Shl(Var, Var, Var),
-    Shr(Var, Var, Var),
-
-    IfFalse(Var, Var, Cc, Target),
-    Goto(Target),
-    Return(Var),
-    ReturnVoid,
-
-    Call(Option<Var>, String, Vec<Var>),
-}
-
-impl fmt::Display for Inst {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Inst::Parameter(var) => write!(f, "v{} = Parameter", var),
-            Inst::MoveImm(dest, constant) => write!(f, "MoveImm v{}, {}", dest, constant),
-            Inst::Move(dest, source) => write!(f, "Move v{}, v{}", dest, source),
-
-            Inst::Add(dest, op1, op2) => write!(f, "v{} = Add(v{}, v{})", dest, op1, op2),
-            Inst::Sub(dest, op1, op2) => write!(f, "v{} = Sub(v{}, v{})", dest, op1, op2),
-            Inst::Mul(dest, op1, op2) => write!(f, "v{} = Mul(v{}, v{})", dest, op1, op2),
-            Inst::Div(dest, op1, op2) => write!(f, "v{} = Div(v{}, v{})", dest, op1, op2),
-            Inst::Mod(dest, op1, op2) => write!(f, "v{} = Mod(v{}, v{})", dest, op1, op2),
-
-            Inst::Neg(dest, val) => write!(f, "v{} = Neg(v{})", dest, val),
-
-            Inst::Shl(dest, op1, op2) => write!(f, "v{} = Shl(v{}, v{})", dest, op1, op2),
-            Inst::Shr(dest, op1, op2) => write!(f, "v{} = Shr(v{}, v{})", dest, op1, op2),
-
-            Inst::IfFalse(op1, op2, cc, target) => {
-                write!(f, "IfFalse v{} {} v{}, goto {}", op1, cc, op2, target)
-            }
-            Inst::Goto(target) => write!(f, "Goto {}", target),
-            Inst::Return(value) => write!(f, "Return v{}", value),
-            Inst::ReturnVoid => write!(f, "ReturnVoid"),
-
-            Inst::Call(dest, name, args) => {
-                let mut s = String::new();
-                if let Some(d) = dest {
-                    s.push_str(&format!("v{} = Call {}, args: ", d, name));
-                } else {
-                    s.push_str(&format!("Call {}, args: ", name));
-                }
-
-                for (i, arg) in args.iter().enumerate() {
-                    if i != args.len() - 1 {
-                        s.push_str(&format!("v{}, ", arg));
-                    } else {
-                        s.push_str(&format!("v{}", arg));
-                    }
-                }
-
-                write!(f, "{}", s)
-            }
-        }
-    }
-}
-
-fn find_dest(variables: &HashMap<String, u16>, name: &String) -> u16 {
-    let dest = variables.get(name);
-    *dest.unwrap()
-}
-
-// Structure which is used during generating first IR.
+// Structure which is used during generating IR.
 // insts - already generated instructions
-// vars  - map (variable name from AST -> variable number in the IR)
-// count - number of variables
+// vars  - map (variable name from AST -> instruction number in the IR)
 // breaks - vector of vectors of indexes (in `insts` vector) of Goto (break) instructions.
 // cur_loop - index of first instruction of the currently handling loop.
 struct Prepare {
     insts: Vec<Inst>,
-    vars: HashMap<String, u16>,
-    count: u16,
+    constants: HashMap<Value, Id>,
+    vars: HashMap<String, usize>,
     breaks: Vec<Vec<usize>>,
-    cur_loop: u64,
+    cur_loop: usize,
 }
 
 impl Prepare {
     fn new() -> Self {
         Self {
             insts: Vec::new(),
+            constants: HashMap::new(),
             vars: HashMap::new(),
-            count: 0,
             breaks: Vec::new(),
 
             // Invalid value at the begining
-            cur_loop: u64::MAX,
+            cur_loop: usize::MAX,
         }
+    }
+
+    fn find_or_create_constant(&mut self, value: i64) -> usize {
+        if let Some(inst) = self.constants.get(&value) {
+            return *inst;
+        }
+
+        let inst = Inst::Constant(self.insts.len(), value);
+        self.insts.push(inst);
+        let inst_num = self.insts.len() - 1;
+        self.constants.insert(value, inst_num);
+
+        inst_num
     }
 }
 
-fn gen_and_check(expr: &Node, prep: &mut Prepare) -> u16 {
+fn gen_and_check(expr: &Node, prep: &mut Prepare) -> usize {
     let source = expr.generate(prep);
     if source.is_none() {
         println!("Variable for expression is not defined");
@@ -164,25 +62,20 @@ fn gen_and_check(expr: &Node, prep: &mut Prepare) -> u16 {
     source.unwrap()
 }
 
-fn gen_expr(expr: &Node, prep: &mut Prepare, dest: u16) {
+fn gen_value_assign(expr: &Node, prep: &mut Prepare, dest: usize) {
     let source = gen_and_check(expr, prep);
-    let move_inst = Inst::Move(dest, source);
+    let move_inst = Inst::Store(prep.insts.len(), source, dest);
     prep.insts.push(move_inst);
 }
 
 fn generate_let(prep: &mut Prepare, name: &String, expr: &Node) {
-    let dest_or_none = prep.vars.get(name);
+    assert_eq!(prep.vars.get(name), None);
 
-    let dest: u16;
-    if let Some(d) = dest_or_none {
-        dest = *d;
-    } else {
-        prep.vars.insert((*name).clone(), prep.count);
-        dest = prep.count;
-        prep.count += 1;
-    }
+    let id = prep.insts.len();
+    prep.vars.insert((*name).clone(), id);
+    prep.insts.push(Inst::Alloc(id));
 
-    gen_expr(expr, prep, dest);
+    gen_value_assign(expr, prep, id);
 }
 
 enum OpType {
@@ -195,25 +88,24 @@ enum OpType {
     Shr,
 }
 
-fn gen_arith_or_shift(prep: &mut Prepare, left: &Node, right: &Node, op: OpType) -> Option<u16> {
+fn gen_arith_or_shift(prep: &mut Prepare, left: &Node, right: &Node, op: OpType) -> Option<usize> {
     let op1 = gen_and_check(left, prep);
     let op2 = gen_and_check(right, prep);
     let arith = match op {
-        OpType::Add => Inst::Add(prep.count, op1, op2),
-        OpType::Sub => Inst::Sub(prep.count, op1, op2),
-        OpType::Mul => Inst::Mul(prep.count, op1, op2),
-        OpType::Div => Inst::Div(prep.count, op1, op2),
-        OpType::Mod => Inst::Mod(prep.count, op1, op2),
-        OpType::Shl => Inst::Shl(prep.count, op1, op2),
-        OpType::Shr => Inst::Shr(prep.count, op1, op2),
+        OpType::Add => Inst::Add(prep.insts.len(), op1, op2),
+        OpType::Sub => Inst::Sub(prep.insts.len(), op1, op2),
+        OpType::Mul => Inst::Mul(prep.insts.len(), op1, op2),
+        OpType::Div => Inst::Div(prep.insts.len(), op1, op2),
+        OpType::Mod => Inst::Mod(prep.insts.len(), op1, op2),
+        OpType::Shl => Inst::Shl(prep.insts.len(), op1, op2),
+        OpType::Shr => Inst::Shr(prep.insts.len(), op1, op2),
     };
-    prep.count += 1;
     prep.insts.push(arith);
 
-    Some(prep.count - 1)
+    Some(prep.insts.len() - 1)
 }
 
-fn gen_operand(prep: &mut Prepare, op: &Node) -> u16 {
+fn gen_operand(prep: &mut Prepare, op: &Node) -> usize {
     if let Node::Id(_name) = op {
         let option = op.generate(prep);
         return option.unwrap();
@@ -226,7 +118,7 @@ fn gen_operand(prep: &mut Prepare, op: &Node) -> u16 {
     std::unreachable!("Comparison operand can only be identifier or integer literal");
 }
 
-fn gen_operands_cc(prep: &mut Prepare, cond: &Node) -> (Var, Var, Cc) {
+fn gen_operands_cc(prep: &mut Prepare, cond: &Node) -> (Operand, Operand, Cc) {
     let op1;
     let op2;
 
@@ -271,11 +163,12 @@ fn gen_operands_cc(prep: &mut Prepare, cond: &Node) -> (Var, Var, Cc) {
 }
 
 // Push partly set IfFalse instruction and get index of it
-fn push_part_if_get_index(prep: &mut Prepare, op1: Var, op2: Var, cc: Cc) -> usize {
-    let if_false = Inst::IfFalse(op1, op2, cc, u64::MAX);
-    let if_index = prep.insts.len();
+fn push_part_if_get_index(prep: &mut Prepare, op1: Operand, op2: Operand, cc: Cc) -> usize {
+    let if_id = prep.insts.len();
+    let if_false = Inst::IfFalse(if_id, op1, op2, cc, usize::MAX);
     prep.insts.push(if_false);
-    if_index
+
+    if_id
 }
 
 // Target instruction of the branch is the instruction after the last instruction of the true
@@ -308,20 +201,20 @@ fn generate_if(prep: &mut Prepare, cond: &Node, block: &Node, alter: &Option<Box
 
     // (4) Compute target IR instruction of this If Node. If there is a false successor then
     //     create a Goto and generate instructions for false successor.
-    let mut if_target = prep.insts.len() as u64;
+    let mut if_target = prep.insts.len();
     if let Some(block_ptr) = alter {
-        let goto = Inst::Goto(u64::MAX);
+        let goto = Inst::Goto(usize::MAX, usize::MAX);
         let goto_index = prep.insts.len();
         prep.insts.push(goto);
         if_target += 1;
 
         (*block_ptr).generate(prep);
-        let goto = Inst::Goto(prep.insts.len() as u64);
+        let goto = Inst::Goto(goto_index, prep.insts.len());
         prep.insts[goto_index] = goto;
     }
 
     // (5) Complete IfFalse instruction and write its target to remembered position in the vector.
-    if let Inst::IfFalse(_, _, _, ref mut target) = prep.insts[if_index] {
+    if let Inst::IfFalse(_, _, _, _, ref mut target) = prep.insts[if_index] {
         *target = if_target;
     } else {
         std::unreachable!("Instruction with index {} is not IfFalse", if_index);
@@ -329,10 +222,10 @@ fn generate_if(prep: &mut Prepare, cond: &Node, block: &Node, alter: &Option<Box
 }
 
 fn set_breaks(prep: &mut Prepare) {
-    let after_last = prep.insts.len() as u64;
+    let after_last = prep.insts.len();
     for break_ in prep.breaks.last().unwrap().iter() {
         debug_assert!(matches!(prep.insts[*break_], Inst::Goto { .. }));
-        prep.insts[*break_] = Inst::Goto(after_last);
+        prep.insts[*break_] = Inst::Goto(*break_, after_last);
     }
 }
 
@@ -367,20 +260,20 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
     //     block. Remember previous loop position in `old_loop`. Set current loop position.
     let if_index = push_part_if_get_index(prep, op1, op2, cc);
     let old_loop = prep.cur_loop;
-    prep.cur_loop = if_index as u64;
+    prep.cur_loop = if_index;
 
     // (4) Generate IR instructions for the block.
     block.generate(prep);
 
     // (5) Insert the goto on the begining of the block.
-    let goto_begin = Inst::Goto(if_index as u64);
+    let goto_begin = Inst::Goto(prep.insts.len(), if_index);
     prep.insts.push(goto_begin);
 
     // (6) Compute target instruction of the IfFalse instruction. Write it to the already created
     //     in step 2 IfFalse.
     let if_target = prep.insts.len();
-    if let Inst::IfFalse(_, _, _, ref mut target) = prep.insts[if_index] {
-        *target = if_target as u64;
+    if let Inst::IfFalse(_, _, _, _, ref mut target) = prep.insts[if_index] {
+        *target = if_target;
     } else {
         std::unreachable!("Instruction with index {} is not IfFalse", if_index);
     }
@@ -400,13 +293,13 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
 fn generate_infinite_loop(prep: &mut Prepare, block: &Node) {
     prep.breaks.push(Vec::new());
 
-    let loop_begin = prep.insts.len() as u64;
+    let loop_begin = prep.insts.len();
     let old_loop = prep.cur_loop;
     prep.cur_loop = loop_begin;
 
     block.generate(prep);
 
-    let goto = Inst::Goto(loop_begin);
+    let goto = Inst::Goto(prep.insts.len(), loop_begin);
     prep.insts.push(goto);
 
     set_breaks(prep);
@@ -417,12 +310,7 @@ fn generate_infinite_loop(prep: &mut Prepare, block: &Node) {
     prep.cur_loop = old_loop;
 }
 
-fn generate_call(
-    prep: &mut Prepare,
-    name: &String,
-    arg_nodes: &[Node],
-    is_subexpr: bool,
-) -> Option<u16> {
+fn generate_call(prep: &mut Prepare, name: &String, arg_nodes: &[Node]) -> Option<usize> {
     // Determine or create variables for the arguments
     let mut args = Vec::new();
     for node in (*arg_nodes).iter() {
@@ -431,34 +319,32 @@ fn generate_call(
         args.push(arg);
     }
 
-    if is_subexpr {
-        let call = Inst::Call(Some(prep.count), (*name).clone(), args);
-        prep.insts.push(call);
-        prep.count += 1;
-        Some(prep.count - 1)
-    } else {
-        let call = Inst::Call(None, (*name).clone(), args);
-        prep.insts.push(call);
-        None
-    }
+    let call = Inst::Call(prep.insts.len(), (*name).clone(), args);
+    prep.insts.push(call);
+
+    Some(prep.insts.len() - 1)
 }
 
 impl Node {
-    fn generate(&self, prep: &mut Prepare) -> Option<u16> {
+    fn generate(&self, prep: &mut Prepare) -> Option<usize> {
         // When we meet identifier we try to find it in the HashMap and extract from it the number
         // of the IR variable.
         if let Self::Id(name) = self {
-            let var_num = prep.vars.get(name);
-            return Some(*var_num.unwrap());
+            let var_num = *prep.vars.get(name).unwrap();
+            if let Inst::Parameter(_) = prep.insts[var_num] {
+                return Some(var_num);
+            }
+
+            let load_id = prep.insts.len();
+            prep.insts.push(Inst::Load(load_id, var_num));
+
+            return Some(prep.insts.len() - 1);
         }
 
         // Creates new variable, instruction MoveImm which writes num to this variable and returns
         // the variable number.
         if let Self::Integer(num) = self {
-            let inst = Inst::MoveImm(prep.count, *num);
-            prep.count += 1;
-            prep.insts.push(inst);
-            return Some(prep.count - 1);
+            return Some(prep.find_or_create_constant(*num));
         }
 
         if let Self::Let(name, expr) = self {
@@ -467,8 +353,8 @@ impl Node {
         }
 
         if let Self::Assign(name, expr) = self {
-            let dest = find_dest(&prep.vars, name);
-            gen_expr(expr, prep, dest);
+            let dest = *prep.vars.get(name).unwrap();
+            gen_value_assign(expr, prep, dest);
             return None;
         }
 
@@ -514,7 +400,7 @@ impl Node {
 
         if let Self::Break = self {
             debug_assert!(!prep.breaks.is_empty());
-            let goto = Inst::Goto(u64::MAX);
+            let goto = Inst::Goto(usize::MAX, usize::MAX);
             prep.breaks.last_mut().unwrap().push(prep.insts.len());
             prep.insts.push(goto);
 
@@ -522,7 +408,7 @@ impl Node {
         }
 
         if let Self::Continue = self {
-            let goto = Inst::Goto(prep.cur_loop);
+            let goto = Inst::Goto(prep.insts.len(), prep.cur_loop);
             prep.insts.push(goto);
 
             return None;
@@ -536,24 +422,23 @@ impl Node {
             return None;
         }
 
-        if let Self::Call(name, arg_nodes, is_subexpr) = self {
-            let ret_var = generate_call(prep, name, arg_nodes, *is_subexpr);
+        if let Self::Call(name, arg_nodes, _) = self {
+            let ret_var = generate_call(prep, name, arg_nodes);
             return ret_var;
         }
 
         if let Self::Return(val) = self {
             let var = gen_and_check(val, prep);
-            let ret = Inst::Return(var);
+            let ret = Inst::Return(prep.insts.len(), var);
             prep.insts.push(ret);
             return None;
         }
 
         if let Self::Neg(val) = self {
             let var = gen_and_check(val, prep);
-            let neg = Inst::Neg(prep.count, var);
-            prep.count += 1;
+            let neg = Inst::Neg(prep.insts.len(), var);
             prep.insts.push(neg);
-            return Some(prep.count - 1);
+            return Some(prep.insts.len() - 1);
         }
 
         if let Self::Shl(left, right) = self {
@@ -567,7 +452,7 @@ impl Node {
         }
 
         if let Self::ReturnVoid = self {
-            let return_void = Inst::ReturnVoid;
+            let return_void = Inst::ReturnVoid(prep.insts.len());
             prep.insts.push(return_void);
             return None;
         }
@@ -576,16 +461,16 @@ impl Node {
     }
 }
 
-// Main function on generating IR from AST. Generates vector of IR instructions.
-pub fn generate_insts(func: &Func) -> Vec<Inst> {
+// Main function on generating IR from AST. Generates vector of IR instructions and (a hash map with
+// constants).
+pub fn generate_ir(func: &parser::Func) -> ir::Function {
     let mut prep = Prepare::new();
 
     // First instructions are the parameters of the function. Each parameter corresponds to an IR
     // variable.
     for param in func.get_params() {
-        prep.vars.insert(param.clone(), prep.count);
-        let inst = Inst::Parameter(prep.count);
-        prep.count += 1;
+        prep.vars.insert(param.clone(), prep.insts.len());
+        let inst = Inst::Parameter(prep.insts.len());
         prep.insts.push(inst);
     }
 
@@ -593,18 +478,20 @@ pub fn generate_insts(func: &Func) -> Vec<Inst> {
         stmt.generate(&mut prep);
     }
 
+    let ret = Inst::ReturnVoid(prep.insts.len());
+
     // Check does function have statements. It is needed in the next check on return.
     if func.get_stmts().is_empty() {
-        return prep.insts;
+        prep.insts.push(ret);
+        return ir::Function::new(prep.insts, prep.constants);
     }
 
     // If in the AST the last statement is not Return than return is implicit and in IR we have it
     // explicit
-    if let Node::Return(_expr) = func.get_stmts().last().unwrap() {
-    } else {
-        let ret = Inst::ReturnVoid;
+    let last = func.get_stmts().last().unwrap();
+    if !(matches!(last, Node::Return { .. }) || matches!(last, Node::ReturnVoid)) {
         prep.insts.push(ret);
     }
 
-    prep.insts
+    ir::Function::new(prep.insts, prep.constants)
 }
