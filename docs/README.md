@@ -1,7 +1,9 @@
 # CTL language of source (input data) code and IR
 
-CTL's parser gets text of source code. This source is (or almost is) a valid
-Rust source code.
+Now CTL consists of the unit tests and also can be compiled in an executable binary which gets **source code** and prints **IR** in a text format.
+This source is (or almost is) a valid **Rust** source code.
+
+![CTL diagram](../assets/general_diagram.png)
 
 ## Intermediate representation (IR)
 
@@ -16,7 +18,11 @@ On this step I have linear code which represents a sequence of instructions.
 * Control flow instructions: **IfFalse**, **Goto**, **Return**, **ReturnVoid**
 * **Call**
 
-Every instruction (except Store and control flow instructions) produces a **value**. Instruction **Alloc** allocates a local variable and produces a pointer to it. **Store** gets an input operand and writes it to the variable pointed by next operand. **Load** reads a value from the local variable which is pointed by the operand.
+Every instruction (except Store and control flow instructions) produces a **value**. Instruction **Alloc** allocates a local variable and produces a
+pointer to it. **Store** gets an input operand and writes it to the variable pointed by next operand. **Load** reads a value from the local variable which
+is pointed by the operand.
+
+**Constant** can be found after its use in this linear code, it is not a big problem.
 
 ## Examples
 
@@ -45,6 +51,7 @@ generated to:
 ```
 %0 = Parameter
 %1 = Parameter
+ 2 ReturnVoid
 ```
 
 This IR means %0 and %1 are **Parameter** instructions.
@@ -239,14 +246,14 @@ generated to:
 %0 = Alloc
 %1 = Constant 0
  2 Store %1 at %0
-%3 = Load 0
+%3 = Load %0
 %4 = Constant 9
  5 IfFalse %3 < %4, goto 15
-%6 = Load 0
+%6 = Load %0
 %7 = Constant 1
 %8 = Add %6, %7
  9 Store %8 at %0
-%10 = Load 0
+%10 = Load %0
 %11 = Constant 23
  12 IfFalse %10 == %11, goto 14
  13 Goto 5
@@ -284,8 +291,8 @@ Function main, 11 instructions:
  2 Store %1 at %0
 %3 = Alloc
  4 Store %1 at %3
-%5 = Load 0
-%6 = Load 3
+%5 = Load %0
+%6 = Load %3
 %7 = Constant 1
 %8 = Add %7, %7
 %9 = Call foo, args: %5, %6, %8

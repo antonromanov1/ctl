@@ -72,7 +72,7 @@ impl fmt::Display for Inst {
             Inst::Parameter(id) => write!(f, "%{} = Parameter", id),
             Inst::Alloc(id) => write!(f, "%{} = Alloc", id),
             Inst::Store(id, src, dest) => write!(f, " {} Store %{} at %{}", id, src, dest),
-            Inst::Load(id, op) => write!(f, "%{} = Load {}", id, op),
+            Inst::Load(id, op) => write!(f, "%{} = Load %{}", id, op),
 
             Inst::Add(id, op1, op2) => write!(f, "%{} = Add %{}, %{}", id, op1, op2),
             Inst::Sub(id, op1, op2) => write!(f, "%{} = Sub %{}, %{}", id, op1, op2),

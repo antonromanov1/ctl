@@ -129,7 +129,7 @@ fn generate_function_returning_param_plus_local() {
         %1 = Alloc
         %2 = Constant 1
          3 Store %2 at %1
-        %4 = Load 1
+        %4 = Load %1
         %5 = Add %0, %4
          6 Return %5"
         .to_string();
@@ -370,7 +370,7 @@ fn generate_conditional_loop() {
     // Compare parameter with immediate 0 and enter the cycle
     expected = expected.clone()
         + " 4 IfFalse %0 == %2, goto 10
-        %5 = Load 1
+        %5 = Load %1
         %6 = Constant 1
         %7 = Add %5, %6
          8 Store %7 at %1
@@ -420,7 +420,7 @@ fn generate_infinite_loop() {
 
     // Infinite loop
     expected = expected.clone()
-        + "%3 = Load 0
+        + "%3 = Load %0
         %4 = Constant 1
         %5 = Add %3, %4
          6 Store %5 at %0
@@ -473,17 +473,17 @@ fn generate_conditional_loop_with_break() {
 
     // Compare "a" with immediate 1 and enter the cycle
     expected = expected.clone()
-        + "%3 = Load 0
+        + "%3 = Load %0
         %4 = Constant 1
          5 IfFalse %3 == %4, goto 14
-        %6 = Load 0
+        %6 = Load %0
         %7 = Add %6, %4
          8 Store %7 at %0
         ";
 
     // Compare "a" with immediate 4 if true we break else go to the end of the loop
     expected = expected.clone()
-        + "%9 = Load 0
+        + "%9 = Load %0
         %10 = Constant 4
          11 IfFalse %9 == %10, goto 13
          12 Goto 14
@@ -542,10 +542,10 @@ fn generate_conditional_loop_with_continues() {
     // while (a == 1) {
     //     a = a + 1;
     expected = expected.clone()
-        + "%3 = Load 0
+        + "%3 = Load %0
         %4 = Constant 1
          5 IfFalse %3 == %4, goto 18
-        %6 = Load 0
+        %6 = Load %0
         %7 = Add %6, %4
          8 Store %7 at %0
         ";
@@ -554,7 +554,7 @@ fn generate_conditional_loop_with_continues() {
     //     continue;
     // }
     expected = expected.clone()
-        + "%9 = Load 0
+        + "%9 = Load %0
         %10 = Constant 4
          11 IfFalse %9 == %10, goto 13
          12 Goto 5
@@ -564,7 +564,7 @@ fn generate_conditional_loop_with_continues() {
     //     continue;
     // }
     expected = expected.clone()
-        + "%13 = Load 0
+        + "%13 = Load %0
         %14 = Constant 3
          15 IfFalse %13 == %14, goto 17
          16 Goto 5
@@ -637,10 +637,10 @@ fn generate_conditional_nested_loops_with_continues() {
     // while (a < 8) {
     //     a = a + 1;
     expected.push_str(
-        "%6 = Load 0
+        "%6 = Load %0
         %7 = Constant 8
          8 IfFalse %6 < %7, goto 28
-        %9 = Load 0
+        %9 = Load %0
         %10 = Constant 1
         %11 = Add %9, %10
          12 Store %11 at %0
@@ -651,7 +651,7 @@ fn generate_conditional_nested_loops_with_continues() {
     //     continue;
     // }
     expected.push_str(
-        "%13 = Load 0
+        "%13 = Load %0
         %14 = Constant 3
          15 IfFalse %13 == %14, goto 17
          16 Goto 8
@@ -662,9 +662,9 @@ fn generate_conditional_nested_loops_with_continues() {
     // while (b > 0) {
     //     b = b - 1;
     expected.push_str(
-        "%17 = Load 3
+        "%17 = Load %3
          18 IfFalse %17 > %1, goto 27
-        %19 = Load 3
+        %19 = Load %3
         %20 = Sub %19, %10
          21 Store %20 at %3
         ",
@@ -674,7 +674,7 @@ fn generate_conditional_nested_loops_with_continues() {
     //     continue;
     // }
     expected.push_str(
-        "%22 = Load 3
+        "%22 = Load %3
         %23 = Constant 4
          24 IfFalse %22 == %23, goto 26
          25 Goto 18
@@ -738,11 +738,11 @@ fn generate_infinite_loop_with_break() {
 
     // Loop's block
     expected = expected.clone()
-        + "%3 = Load 0
+        + "%3 = Load %0
         %4 = Constant 1
         %5 = Add %3, %4
          6 Store %5 at %0
-        %7 = Load 0
+        %7 = Load %0
         %8 = Constant 4
          9 IfFalse %7 == %8, goto 11
          10 Goto 12
