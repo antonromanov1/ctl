@@ -233,14 +233,18 @@ fn set_breaks(prep: &mut Prepare) {
 // block.
 //
 // Example:
-// while (condition) {
+// a = Load
+// b = Load
+// while (a cmp b) {
 //     block
 // }
 //
 // Built IR:
+// -2 Load
+// -1 Load
 // 0 IfFalse condition Goto 2
 // 1 block
-// goto 1
+// goto -2
 // 2 Next instruction
 //
 // Every element of Prepare's breaks vector is a vector of numbers of the
@@ -260,16 +264,27 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
     //     block. Remember previous loop position in `old_loop`. Set current loop position.
     let if_index = push_part_if_get_index(prep, op1, op2, cc);
     let old_loop = prep.cur_loop;
-    prep.cur_loop = if_index;
 
-    // (4) Generate IR instructions for the block.
+    // (4) Determine the begining of the loop
+    let begin: usize;
+    if let Inst::Load(_, _) = prep.insts[op1] {
+        begin = op1;
+    } else if let Inst::Load(_, _) = prep.insts[op2] {
+        begin = op2;
+    } else {
+        begin = if_index;
+    }
+
+    prep.cur_loop = begin;
+
+    // (5) Generate IR instructions for the block.
     block.generate(prep);
 
-    // (5) Insert the goto on the begining of the block.
-    let goto_begin = Inst::Goto(prep.insts.len(), if_index);
+    // (6) Insert the goto on the begining of the block.
+    let goto_begin = Inst::Goto(prep.insts.len(), begin);
     prep.insts.push(goto_begin);
 
-    // (6) Compute target instruction of the IfFalse instruction. Write it to the already created
+    // (7) Compute target instruction of the IfFalse instruction. Write it to the already created
     //     in step 2 IfFalse.
     let if_target = prep.insts.len();
     if let Inst::IfFalse(_, _, _, _, ref mut target) = prep.insts[if_index] {
@@ -280,16 +295,16 @@ fn generate_while(prep: &mut Prepare, cond: &Node, block: &Node) {
 
     set_breaks(prep);
 
-    // (7) Pop vector of breaks for this cycle
+    // (8) Pop vector of breaks for this cycle
     let breaks = prep.breaks.pop();
     debug_assert!(matches!(breaks, Some { .. }));
 
-    // (8) Save remembered previous loop
+    // (9) Save remembered previous loop
     prep.cur_loop = old_loop;
 }
 
-// Steps made in this function are described in function `generate_while` therefore these are not
-// given here.
+// Steps made in this function (except determining begining of the loop) are described in function
+// `generate_while` therefore these are not given here.
 fn generate_infinite_loop(prep: &mut Prepare, block: &Node) {
     prep.breaks.push(Vec::new());
 
@@ -391,6 +406,8 @@ impl Node {
         if let Self::While(cond, block) = self {
             if let Node::True = **cond {
                 generate_infinite_loop(prep, block);
+            } else if let Node::False = **cond {
+                block.generate(prep);
             } else {
                 generate_while(prep, cond, block);
             }

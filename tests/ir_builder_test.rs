@@ -487,7 +487,7 @@ fn generate_conditional_loop_with_break() {
         %10 = Constant 4
          11 IfFalse %9 == %10, goto 13
          12 Goto 14
-         13 Goto 5
+         13 Goto 3
         ";
 
     // Return void
@@ -557,7 +557,7 @@ fn generate_conditional_loop_with_continues() {
         + "%9 = Load %0
         %10 = Constant 4
          11 IfFalse %9 == %10, goto 13
-         12 Goto 5
+         12 Goto 3
         ";
 
     // if (a == 3) {
@@ -567,12 +567,12 @@ fn generate_conditional_loop_with_continues() {
         + "%13 = Load %0
         %14 = Constant 3
          15 IfFalse %13 == %14, goto 17
-         16 Goto 5
+         16 Goto 3
         ";
 
     // Go back at the begining of the loop's block
     expected = expected.clone()
-        + " 17 Goto 5
+        + " 17 Goto 3
         ";
 
     expected = expected.clone() + " 18 ReturnVoid";
@@ -654,7 +654,7 @@ fn generate_conditional_nested_loops_with_continues() {
         "%13 = Load %0
         %14 = Constant 3
          15 IfFalse %13 == %14, goto 17
-         16 Goto 8
+         16 Goto 6
         ",
     );
 
@@ -677,19 +677,19 @@ fn generate_conditional_nested_loops_with_continues() {
         "%22 = Load %3
         %23 = Constant 4
          24 IfFalse %22 == %23, goto 26
-         25 Goto 18
+         25 Goto 17
         ",
     );
 
     // Go back to the comparison of the inner loop
     expected.push_str(
-        " 26 Goto 18
+        " 26 Goto 17
         ",
     );
 
     // Go back to the comparison of the outer loop
     expected.push_str(
-        " 27 Goto 8
+        " 27 Goto 6
         ",
     );
 

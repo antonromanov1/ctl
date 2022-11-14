@@ -256,8 +256,8 @@ generated to:
 %10 = Load %0
 %11 = Constant 23
  12 IfFalse %10 == %11, goto 14
- 13 Goto 5
- 14 Goto 5
+ 13 Goto 3
+ 14 Goto 3
  15 ReturnVoid
 ```
 
