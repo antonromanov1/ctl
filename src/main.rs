@@ -23,13 +23,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate IR for each function and dump it to the stdout
     for func in funcs {
         let ir = generate_ir(&func);
-        let insts = ir.get_insts();
+        let insts = ir.insts();
 
-        println!(
-            "Function {}, {} instructions:",
-            func.get_name(),
-            insts.len()
-        );
+        println!("Function {}, {} instructions:", func.name(), insts.len());
         for inst in insts {
             println!("{}", inst);
         }

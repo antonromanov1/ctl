@@ -130,7 +130,7 @@ impl Function {
         }
     }
 
-    pub fn get_insts(&self) -> &[Inst] {
+    pub fn insts(&self) -> &[Inst] {
         &self.insts
     }
 }

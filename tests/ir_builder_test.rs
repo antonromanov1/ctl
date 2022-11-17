@@ -25,7 +25,7 @@ fn generate_empty_function_no_param() {
 
     // Try to generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -53,7 +53,7 @@ fn generate_empty_function_few_parameters() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -85,7 +85,7 @@ fn generate_function_returning_its_param() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -117,7 +117,7 @@ fn generate_function_returning_param_plus_local() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -153,7 +153,7 @@ fn generate_arithmetic_expression() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -191,7 +191,7 @@ fn generate_negate() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -226,7 +226,7 @@ fn generate_shifts() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -267,7 +267,7 @@ fn generate_conditional_branch_with_assign() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -308,7 +308,7 @@ fn generate_conditional_branch_with_returns() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -350,7 +350,7 @@ fn generate_conditional_loop() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -402,7 +402,7 @@ fn generate_infinite_loop() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -455,7 +455,7 @@ fn generate_conditional_loop_with_break() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -523,7 +523,7 @@ fn generate_conditional_loop_with_continues() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -614,7 +614,7 @@ fn generate_conditional_nested_loops_with_continues() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -720,7 +720,7 @@ fn generate_infinite_loop_with_break() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -781,7 +781,7 @@ fn generate_nested_infinite_loops() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -835,7 +835,7 @@ fn generate_call_no_arguments() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[0]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -869,7 +869,7 @@ fn generate_call_few_arguments() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[1]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string
@@ -904,7 +904,7 @@ fn generate_call_as_expression() {
 
     // Generate IR instructions
     let func = generate_ir(&funcs[1]);
-    let insts = func.get_insts();
+    let insts = func.insts();
     assert!(!insts.is_empty());
 
     // Dump these to a string

@@ -111,7 +111,7 @@ fn parsing_empty_function() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![]);
+    assert_eq!(*funcs[0].stmts(), vec![]);
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn parsing_arithmetic_sum_literals() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
+    assert_eq!(*funcs[0].stmts(), vec![let_, assign]);
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn parsing_arithmetic_sum_with_id() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let1, let2, assign1, assign2]);
+    assert_eq!(*funcs[0].stmts(), vec![let1, let2, assign1, assign2]);
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn parsing_arithmetic_mul_sum_literals() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
+    assert_eq!(*funcs[0].stmts(), vec![let_, assign]);
 }
 
 #[test]
@@ -237,7 +237,7 @@ fn parsing_arithmetic_div() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
+    assert_eq!(*funcs[0].stmts(), vec![let_, assign]);
 }
 
 #[test]
@@ -260,7 +260,7 @@ fn parsing_assign() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let_, assign]);
+    assert_eq!(*funcs[0].stmts(), vec![let_, assign]);
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn parsing_shifts() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![let1, let2, assign1, assign2]);
+    assert_eq!(*funcs[0].stmts(), vec![let1, let2, assign1, assign2]);
 }
 
 #[test]
@@ -311,7 +311,7 @@ fn parsing_if_one_block() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![if_stmt]);
+    assert_eq!(*funcs[0].stmts(), vec![if_stmt]);
 }
 
 #[test]
@@ -337,7 +337,7 @@ fn parsing_if_two_blocks() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![if_stmt]);
+    assert_eq!(*funcs[0].stmts(), vec![if_stmt]);
 }
 
 #[test]
@@ -360,7 +360,7 @@ fn parsing_infinite_while_with_break() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![while_]);
+    assert_eq!(*funcs[0].stmts(), vec![while_]);
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn parsing_infinite_while_with_continue() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![while_]);
+    assert_eq!(*funcs[0].stmts(), vec![while_]);
 }
 
 #[test]
@@ -415,7 +415,7 @@ fn parsing_call_separately() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 2);
-    assert_eq!(*funcs[1].get_stmts(), vec![let1, let2, call]);
+    assert_eq!(*funcs[1].stmts(), vec![let1, let2, call]);
 }
 
 #[test]
@@ -442,7 +442,7 @@ fn parsing_call_as_expression() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 2);
-    assert_eq!(*funcs[1].get_stmts(), vec![let_, assign]);
+    assert_eq!(*funcs[1].stmts(), vec![let_, assign]);
 }
 
 #[test]
@@ -462,7 +462,7 @@ fn parsing_return_void() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![ret]);
+    assert_eq!(*funcs[0].stmts(), vec![ret]);
 }
 
 #[test]
@@ -482,7 +482,7 @@ fn parsing_return() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 1);
-    assert_eq!(*funcs[0].get_stmts(), vec![ret]);
+    assert_eq!(*funcs[0].stmts(), vec![ret]);
 }
 
 #[test]
@@ -538,9 +538,9 @@ fn parsing_two_functions() {
 
     // Compare the parsed nodes with the expected ones
     assert_eq!(funcs.len(), 2);
-    assert_eq!(*funcs[0].get_stmts(), vec![]);
-    assert_eq!(*funcs[1].get_stmts(), vec![]);
-    assert_eq!(*funcs[0].get_params(), vec![param]);
+    assert_eq!(*funcs[0].stmts(), vec![]);
+    assert_eq!(*funcs[1].stmts(), vec![]);
+    assert_eq!(*funcs[0].params(), vec![param]);
 }
 
 #[test]

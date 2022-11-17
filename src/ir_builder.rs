@@ -485,27 +485,27 @@ pub fn generate_ir(func: &parser::Func) -> ir::Function {
 
     // First instructions are the parameters of the function. Each parameter corresponds to an IR
     // variable.
-    for param in func.get_params() {
+    for param in func.params() {
         prep.vars.insert(param.clone(), prep.insts.len());
         let inst = Inst::Parameter(prep.insts.len());
         prep.insts.push(inst);
     }
 
-    for stmt in func.get_stmts() {
+    for stmt in func.stmts() {
         stmt.generate(&mut prep);
     }
 
     let ret = Inst::ReturnVoid(prep.insts.len());
 
     // Check does function have statements. It is needed in the next check on return.
-    if func.get_stmts().is_empty() {
+    if func.stmts().is_empty() {
         prep.insts.push(ret);
         return ir::Function::new(prep.insts, prep.constants);
     }
 
     // If in the AST the last statement is not Return than return is implicit and in IR we have it
     // explicit
-    let last = func.get_stmts().last().unwrap();
+    let last = func.stmts().last().unwrap();
     if !(matches!(last, Node::Return { .. }) || matches!(last, Node::ReturnVoid)) {
         prep.insts.push(ret);
     }

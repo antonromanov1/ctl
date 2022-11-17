@@ -429,15 +429,15 @@ pub struct Func {
 }
 
 impl Func {
-    pub fn get_name(&self) -> &String {
+    pub fn name(&self) -> &String {
         &self.name
     }
 
-    pub fn get_params(&self) -> &[String] {
+    pub fn params(&self) -> &[String] {
         &self.params
     }
 
-    pub fn get_stmts(&self) -> &[Node] {
+    pub fn stmts(&self) -> &[Node] {
         &self.stmts
     }
 }
