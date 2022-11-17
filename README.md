@@ -39,7 +39,7 @@ cargo test
 
 ## Features
 
-You can explore what source code CTL can handle in the [docs](./docs/language_and_ir.md).
+You can explore what source code CTL can handle in the [docs](./docs).
 
 * **Parsing**. CTL can parse a source code written in a subset of Rust. One can get familiar with the
 language in `tests/parser_test.rs`
