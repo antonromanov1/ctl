@@ -62,9 +62,9 @@ pub enum InstData {
     Shl(Operand, Operand),
     Shr(Operand, Operand),
 
-    Neg(InstId),
+    Neg(Operand),
 
-    IfFalse(InstId, InstId, Cc, Target),
+    IfFalse(Operand, Operand, Cc, Target),
     Goto(Target),
     Return(InstId),
     ReturnVoid,
