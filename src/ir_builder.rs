@@ -55,11 +55,7 @@ impl IrBuilder {
 impl IrBuilder {
     fn gen_and_check(&mut self, expr: &Node) -> InstId {
         let source = self.generate(expr);
-        if source.is_none() {
-            println!("Variable for expression is not defined");
-            std::process::exit(1);
-        }
-        source.unwrap()
+        source.expect("Instruction for expression is not defined")
     }
 
     fn gen_value_assign(&mut self, expr: &Node, dest: InstId) {

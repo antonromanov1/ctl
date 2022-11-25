@@ -99,18 +99,17 @@ impl fmt::Display for InstData {
             InstData::ReturnVoid => write!(f, "ReturnVoid"),
 
             InstData::Call(name, args) => {
-                let mut s = String::new();
-                s.push_str(&format!("Call {}, args: ", name));
+                write!(f, "Call {}, args: ", name)?;
 
                 for (i, arg) in args.iter().enumerate() {
                     if i != args.len() - 1 {
-                        s.push_str(&format!("%{}, ", arg));
+                        write!(f, "%{}, ", arg)?;
                     } else {
-                        s.push_str(&format!("%{}", arg));
+                        write!(f, "%{}", arg)?;
                     }
                 }
 
-                write!(f, "{}", s)
+                Ok(())
             }
         }
     }

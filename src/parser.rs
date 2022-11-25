@@ -350,8 +350,6 @@ pub enum Node {
     // Name of calling function, passing arguments and is call separate or it is a
     // subexpression.
     Call(Name, Elements, bool),
-
-    Invalid,
 }
 
 macro_rules! elements_to_string {
@@ -415,8 +413,6 @@ impl fmt::Display for Node {
                 Some(alt) => write!(f, "IF<{},{}> ELSE<{}>", cond, stmts, alt),
                 None => write!(f, "IF<{},{}>", cond, stmts),
             },
-
-            Node::Invalid => std::unreachable!(),
         }
     }
 }
@@ -712,7 +708,6 @@ impl Parser {
 
     fn equal(&mut self) -> ParseResult<Node> {
         let mut lhs: Node = self.relation()?;
-        self.ensure_valid(&lhs)?;
 
         while self.check_vec(vec![Token::Eq, Token::Ne]) {
             let op: Token = self.get_token();
@@ -730,7 +725,6 @@ impl Parser {
 
     fn relation(&mut self) -> ParseResult<Node> {
         let mut lhs: Node = self.shift()?;
-        self.ensure_valid(&lhs)?;
 
         while self.check_vec(vec![Token::Lt, Token::Gt, Token::Le, Token::Ge]) {
             let op: Token = self.get_token();
@@ -752,7 +746,6 @@ impl Parser {
 
     fn shift(&mut self) -> ParseResult<Node> {
         let mut lhs: Node = self.add_sub()?;
-        self.ensure_valid(&lhs)?;
 
         loop {
             if self.check(&Token::Shl) {
@@ -771,7 +764,6 @@ impl Parser {
 
     fn add_sub(&mut self) -> ParseResult<Node> {
         let mut lhs: Node = self.mul_div()?;
-        self.ensure_valid(&lhs)?;
 
         while self.check_vec(vec![Token::Plus, Token::Minus]) {
             let op: Token = self.get_token();
@@ -788,7 +780,6 @@ impl Parser {
 
     fn mul_div(&mut self) -> ParseResult<Node> {
         let mut lhs: Node = self.unary()?;
-        self.ensure_valid(&lhs)?;
 
         while self.check_vec(vec![Token::Star, Token::Slash, Token::Percent]) {
             let op: Token = self.get_token();
@@ -929,13 +920,6 @@ impl Parser {
         } else {
             Err(format!("expected identifier but got '{}'", t))
         }
-    }
-
-    fn ensure_valid(&mut self, n: &Node) -> ParseResult<()> {
-        if let &Node::Invalid = n {
-            return Err("got INVALID Node".to_string());
-        }
-        Ok(())
     }
 
     fn check_vec(&self, tks: Vec<Token>) -> bool {
