@@ -26,8 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let insts = ir.insts();
 
         println!("Function {}, {} instructions:", func.name(), insts.len());
-        for inst in insts {
-            println!("{}", inst);
+        for (i, inst) in insts.iter().enumerate() {
+            println!("{} {}", i, inst);
         }
         println!();
     }

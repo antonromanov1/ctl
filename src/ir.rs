@@ -29,75 +29,78 @@ impl fmt::Display for Cc {
     }
 }
 
-pub type Id = usize;
-pub type Operand = usize;
-type Dest = usize;
-// Branch target which is an instructions number
-pub type Target = usize;
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct InstId(pub usize);
 
+impl fmt::Display for InstId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+type Operand = InstId;
+type Dest = InstId;
+// Branch target
+type Target = InstId;
 pub type Value = i64;
 
 // #[derive(Debug, PartialEq)]
-pub enum Inst {
-    Constant(Id, Value),
-    Parameter(Id),
+pub enum InstData {
+    Constant(Value),
+    Parameter,
 
-    Alloc(Id),
-    Store(Id, Operand, Dest),
-    Load(Id, Operand),
+    Alloc,
+    Store(InstId, Dest),
+    Load(InstId),
 
     // Binary instructions
-    Add(Id, Operand, Operand),
-    Sub(Id, Operand, Operand),
-    Mul(Id, Operand, Operand),
-    Div(Id, Operand, Operand),
-    Mod(Id, Operand, Operand),
-    Shl(Id, Operand, Operand),
-    Shr(Id, Operand, Operand),
+    Add(Operand, Operand),
+    Sub(Operand, Operand),
+    Mul(Operand, Operand),
+    Div(Operand, Operand),
+    Mod(Operand, Operand),
+    Shl(Operand, Operand),
+    Shr(Operand, Operand),
 
-    Neg(Id, Operand),
+    Neg(InstId),
 
-    IfFalse(Id, Operand, Operand, Cc, Target),
-    Goto(Id, Target),
-    Return(Id, Operand),
-    ReturnVoid(Id),
+    IfFalse(InstId, InstId, Cc, Target),
+    Goto(Target),
+    Return(InstId),
+    ReturnVoid,
 
-    Call(Id, String, Vec<Operand>),
+    Call(String, Vec<InstId>),
 }
 
-impl fmt::Display for Inst {
+impl fmt::Display for InstData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Inst::Constant(id, value) => write!(f, "%{} = Constant {}", id, value),
-            Inst::Parameter(id) => write!(f, "%{} = Parameter", id),
-            Inst::Alloc(id) => write!(f, "%{} = Alloc", id),
-            Inst::Store(id, src, dest) => write!(f, " {} Store %{} at %{}", id, src, dest),
-            Inst::Load(id, op) => write!(f, "%{} = Load %{}", id, op),
+            InstData::Constant(value) => write!(f, "Constant {}", value),
+            InstData::Parameter => write!(f, "Parameter"),
+            InstData::Alloc => write!(f, "Alloc"),
+            InstData::Store(src, dest) => write!(f, "Store %{} at %{}", src, dest),
+            InstData::Load(op) => write!(f, "Load %{}", op),
 
-            Inst::Add(id, op1, op2) => write!(f, "%{} = Add %{}, %{}", id, op1, op2),
-            Inst::Sub(id, op1, op2) => write!(f, "%{} = Sub %{}, %{}", id, op1, op2),
-            Inst::Mul(id, op1, op2) => write!(f, "%{} = Mul %{}, %{}", id, op1, op2),
-            Inst::Div(id, op1, op2) => write!(f, "%{} = Div %{}, %{}", id, op1, op2),
-            Inst::Mod(id, op1, op2) => write!(f, "%{} = Mod %{}, %{}", id, op1, op2),
-            Inst::Shl(id, op1, op2) => write!(f, "%{} = Shl %{}, %{}", id, op1, op2),
-            Inst::Shr(id, op1, op2) => write!(f, "%{} = Shr %{}, %{}", id, op1, op2),
+            InstData::Add(op1, op2) => write!(f, "Add %{}, %{}", op1, op2),
+            InstData::Sub(op1, op2) => write!(f, "Sub %{}, %{}", op1, op2),
+            InstData::Mul(op1, op2) => write!(f, "Mul %{}, %{}", op1, op2),
+            InstData::Div(op1, op2) => write!(f, "Div %{}, %{}", op1, op2),
+            InstData::Mod(op1, op2) => write!(f, "Mod %{}, %{}", op1, op2),
+            InstData::Shl(op1, op2) => write!(f, "Shl %{}, %{}", op1, op2),
+            InstData::Shr(op1, op2) => write!(f, "Shr %{}, %{}", op1, op2),
 
-            Inst::Neg(id, op) => write!(f, "%{} = Neg %{}", id, op),
+            InstData::Neg(op) => write!(f, "Neg %{}", op),
 
-            Inst::IfFalse(id, op1, op2, cc, target) => {
-                write!(
-                    f,
-                    " {} IfFalse %{} {} %{}, goto {}",
-                    id, op1, cc, op2, target
-                )
+            InstData::IfFalse(op1, op2, cc, target) => {
+                write!(f, "IfFalse %{} {} %{}, goto {}", op1, cc, op2, target)
             }
-            Inst::Goto(id, target) => write!(f, " {} Goto {}", id, target),
-            Inst::Return(id, value) => write!(f, " {} Return %{}", id, value),
-            Inst::ReturnVoid(id) => write!(f, " {} ReturnVoid", id),
+            InstData::Goto(target) => write!(f, "Goto {}", target),
+            InstData::Return(value) => write!(f, "Return %{}", value),
+            InstData::ReturnVoid => write!(f, "ReturnVoid"),
 
-            Inst::Call(id, name, args) => {
+            InstData::Call(name, args) => {
                 let mut s = String::new();
-                s.push_str(&format!("%{} = Call {}, args: ", id, name));
+                s.push_str(&format!("Call {}, args: ", name));
 
                 for (i, arg) in args.iter().enumerate() {
                     if i != args.len() - 1 {
@@ -116,21 +119,21 @@ impl fmt::Display for Inst {
 use std::collections::HashMap;
 
 pub struct Function {
-    insts: Vec<Inst>,
+    insts: Vec<InstData>,
 
     #[allow(dead_code)]
-    constants: HashMap<Value, Id>,
+    constants: HashMap<Value, InstId>,
 }
 
 impl Function {
-    pub fn new(insts: Vec<Inst>, constants: HashMap<Value, Id>) -> Function {
+    pub fn new(insts: Vec<InstData>, constants: HashMap<Value, InstId>) -> Function {
         Function {
             insts: insts,
             constants: constants,
         }
     }
 
-    pub fn insts(&self) -> &[Inst] {
+    pub fn insts(&self) -> &[InstData] {
         &self.insts
     }
 }

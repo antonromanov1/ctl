@@ -1,12 +1,19 @@
-use ctl::ir::Inst;
+use ctl::ir::InstData;
 use ctl::ir_builder::generate_ir;
 use ctl::parser::parse;
 
-fn dump(insts: &[Inst]) -> String {
+fn dump(insts: &[InstData]) -> String {
     let mut res = String::new();
-    for inst in insts {
+    for (i, inst) in insts.iter().enumerate() {
         res.push_str("\n        ");
-        res.push_str(&format!("{}", inst));
+        match inst {
+            InstData::Store(_, _)
+            | InstData::Goto(_)
+            | InstData::IfFalse(_, _, _, _)
+            | InstData::ReturnVoid
+            | InstData::Return(_) => res.push_str(&format!(" {} {}", i, inst)),
+            _ => res.push_str(&format!("%{} = {}", i, inst)),
+        }
     }
 
     res
