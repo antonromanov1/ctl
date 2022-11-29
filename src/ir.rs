@@ -72,6 +72,17 @@ pub enum InstData {
     Call(String, Vec<InstId>),
 }
 
+impl InstData {
+    pub fn set_target(&mut self, new_target: Target) {
+        match self {
+            Self::IfFalse(_, _, _, ref mut target) | Self::Goto(ref mut target) => {
+                *target = new_target
+            }
+            _ => std::unreachable!(),
+        }
+    }
+}
+
 impl fmt::Display for InstData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -119,20 +130,50 @@ use std::collections::HashMap;
 
 pub struct Function {
     insts: Vec<InstData>,
-
-    #[allow(dead_code)]
     constants: HashMap<Value, InstId>,
 }
 
 impl Function {
-    pub fn new(insts: Vec<InstData>, constants: HashMap<Value, InstId>) -> Function {
+    pub fn new() -> Function {
+        const AVERAGE_MINIMUM_COUNT: usize = 20;
         Function {
-            insts: insts,
-            constants: constants,
+            insts: Vec::<InstData>::with_capacity(AVERAGE_MINIMUM_COUNT),
+            constants: HashMap::new(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.insts.len()
     }
 
     pub fn insts(&self) -> &[InstData] {
         &self.insts
+    }
+
+    pub fn constants(&self) -> &HashMap<Value, InstId> {
+        &self.constants
+    }
+
+    pub fn constants_mut(&mut self) -> &mut HashMap<Value, InstId> {
+        &mut self.constants
+    }
+
+    pub fn create_inst(&mut self, data: InstData) -> InstId {
+        self.insts.push(data);
+        InstId(self.insts.len() - 1)
+    }
+}
+
+impl std::ops::Index<InstId> for Function {
+    type Output = InstData;
+
+    fn index(&self, id: InstId) -> &Self::Output {
+        &self.insts[id.0]
+    }
+}
+
+impl std::ops::IndexMut<InstId> for Function {
+    fn index_mut(&mut self, id: InstId) -> &mut Self::Output {
+        &mut self.insts[id.0]
     }
 }
