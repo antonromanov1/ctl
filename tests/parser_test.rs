@@ -1,7 +1,7 @@
-use ctl::parser::lexing;
-use ctl::parser::parse;
-use ctl::parser::Node;
-use ctl::parser::Token;
+use ctl::frontend::parser::lexing;
+use ctl::frontend::parser::parse;
+use ctl::frontend::parser::Node;
+use ctl::frontend::parser::Token;
 
 #[test]
 fn lexical1() {

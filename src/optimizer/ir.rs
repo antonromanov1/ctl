@@ -73,6 +73,13 @@ pub enum InstData {
 }
 
 impl InstData {
+    pub fn target(&self) -> Option<InstId> {
+        match self {
+            Self::IfFalse(_, _, _, target) | Self::Goto(target) => Some(*target),
+            _ => None,
+        }
+    }
+
     pub fn set_target(&mut self, new_target: Target) {
         match self {
             Self::IfFalse(_, _, _, ref mut target) | Self::Goto(ref mut target) => {
@@ -126,19 +133,88 @@ impl fmt::Display for InstData {
     }
 }
 
+impl InstData {
+    pub fn dump(&self, id: InstId) -> String {
+        match self {
+            InstData::Store(_, _)
+            | InstData::Goto(_)
+            | InstData::IfFalse(_, _, _, _)
+            | InstData::ReturnVoid
+            | InstData::Return(_) => format!(" {} {}", id, self),
+            _ => format!("%{} = {}", id, self),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct BlockId(pub usize);
+
+struct InstNode {
+    block: Option<BlockId>,
+    next: Option<InstId>,
+}
+
+impl InstNode {
+    fn new() -> Self {
+        Self {
+            block: None,
+            next: None,
+        }
+    }
+}
+
+pub struct BasicBlock {
+    first: Option<InstId>,
+    last: Option<InstId>,
+}
+
+impl BasicBlock {
+    fn new() -> Self {
+        Self {
+            first: None,
+            last: None,
+        }
+    }
+
+    fn dump(&self, insts: &[InstData], layout: &[InstNode]) -> String {
+        let mut result = String::new();
+
+        if let None = self.first {
+            return result;
+        }
+
+        let mut to_inst = &self.first;
+        while let Some(id) = to_inst {
+            result.push_str(&insts[to_inst.unwrap().0].dump(*id));
+            result.push('\n');
+
+            to_inst = &layout[to_inst.unwrap().0].next;
+        }
+
+        result
+    }
+}
+
 use std::collections::HashMap;
 
 pub struct Function {
+    name: String,
     insts: Vec<InstData>,
     constants: HashMap<Value, InstId>,
+    layout: Vec<InstNode>,
+    blocks: Vec<BasicBlock>,
 }
 
 impl Function {
-    pub fn new() -> Function {
+    pub fn new(name: String) -> Function {
         const AVERAGE_MINIMUM_COUNT: usize = 20;
+
         Function {
+            name: name,
             insts: Vec::<InstData>::with_capacity(AVERAGE_MINIMUM_COUNT),
             constants: HashMap::new(),
+            layout: Vec::new(),
+            blocks: Vec::new(),
         }
     }
 
@@ -158,9 +234,73 @@ impl Function {
         &mut self.constants
     }
 
+    pub fn blocks(&self) -> &Vec<BasicBlock> {
+        &self.blocks
+    }
+
     pub fn create_inst(&mut self, data: InstData) -> InstId {
         self.insts.push(data);
+        self.layout.push(InstNode::new());
         InstId(self.insts.len() - 1)
+    }
+
+    pub fn create_block(&mut self) -> BlockId {
+        let len = self.blocks.len();
+        self.blocks.push(BasicBlock::new());
+        BlockId(len)
+    }
+
+    pub fn append_inst(&mut self, inst: InstId, block: BlockId) {
+        self.layout[inst.0].block = Some(block);
+        debug_assert!(
+            block.0 < self.blocks.len(),
+            "No block {} in Function",
+            block.0
+        );
+        let bb = &mut self.blocks[block.0];
+
+        if let None = bb.first {
+            debug_assert!(
+                matches!(bb.last, None),
+                "BB: {}. First instruction is not set but last is",
+                block.0
+            );
+            bb.first = Some(inst);
+            bb.last = Some(inst);
+            return;
+        }
+
+        if let None = bb.last {
+            debug_assert!(
+                matches!(bb.first, None),
+                "BB: {}. First instruction is not set but last is",
+                block.0
+            );
+        }
+
+        let last_node = &mut self.layout[bb.last.unwrap().0];
+        debug_assert!(
+            matches!(last_node.next, None),
+            "Last instruction in BB {} has the next one",
+            block.0
+        );
+        last_node.next = Some(inst);
+        bb.last = Some(inst);
+    }
+}
+
+impl Function {
+    pub fn dump(&self) -> String {
+        let mut result = String::new();
+        result.push_str(&format!("Function {}:\n", self.name));
+
+        for (id, block) in self.blocks.iter().enumerate() {
+            result.push_str(&format!("BB {}:\n", id));
+            result.push_str(&block.dump(&self.insts, &self.layout));
+            result.push('\n');
+        }
+
+        result
     }
 }
 

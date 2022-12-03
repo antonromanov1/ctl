@@ -1,19 +1,12 @@
-use ctl::ir::InstData;
-use ctl::ir_builder::generate_ir;
-use ctl::parser::parse;
+use ctl::frontend::inst_builder::generate_instructions;
+use ctl::frontend::parser::parse;
+use ctl::optimizer::ir;
 
-fn dump(insts: &[InstData]) -> String {
+fn dump(insts: &[ir::InstData]) -> String {
     let mut res = String::new();
     for (i, inst) in insts.iter().enumerate() {
         res.push_str("\n        ");
-        match inst {
-            InstData::Store(_, _)
-            | InstData::Goto(_)
-            | InstData::IfFalse(_, _, _, _)
-            | InstData::ReturnVoid
-            | InstData::Return(_) => res.push_str(&format!(" {} {}", i, inst)),
-            _ => res.push_str(&format!("%{} = {}", i, inst)),
-        }
+        res.push_str(&inst.dump(ir::InstId(i)));
     }
 
     res
@@ -31,7 +24,7 @@ fn generate_empty_function_no_param() {
     assert_eq!(funcs.len(), 1);
 
     // Try to generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -59,7 +52,7 @@ fn generate_empty_function_few_parameters() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -91,7 +84,7 @@ fn generate_function_returning_its_param() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -123,7 +116,7 @@ fn generate_function_returning_param_plus_local() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -159,7 +152,7 @@ fn generate_arithmetic_expression() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -197,7 +190,7 @@ fn generate_negate() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -232,7 +225,7 @@ fn generate_shifts() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -273,7 +266,7 @@ fn generate_conditional_branch_with_assign() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -314,7 +307,7 @@ fn generate_conditional_branch_with_returns() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -356,7 +349,7 @@ fn generate_conditional_loop() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -408,7 +401,7 @@ fn generate_infinite_loop() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -461,7 +454,7 @@ fn generate_conditional_loop_with_break() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -529,7 +522,7 @@ fn generate_conditional_loop_with_continues() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -620,7 +613,7 @@ fn generate_conditional_nested_loops_with_continues() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -726,7 +719,7 @@ fn generate_infinite_loop_with_break() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -787,7 +780,7 @@ fn generate_nested_infinite_loops() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -841,7 +834,7 @@ fn generate_call_no_arguments() {
     assert_eq!(funcs.len(), 1);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[0]);
+    let func = generate_instructions(&funcs[0]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -875,7 +868,7 @@ fn generate_call_few_arguments() {
     assert_eq!(funcs.len(), 2);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[1]);
+    let func = generate_instructions(&funcs[1]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 
@@ -910,7 +903,7 @@ fn generate_call_as_expression() {
     assert_eq!(funcs.len(), 2);
 
     // Generate IR instructions
-    let func = generate_ir(&funcs[1]);
+    let func = generate_instructions(&funcs[1]);
     let insts = func.insts();
     assert!(!insts.is_empty());
 

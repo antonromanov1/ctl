@@ -1,8 +1,9 @@
 use std::fs::File;
 use std::io::Read;
 
-use ctl::ir_builder::generate_ir;
-use ctl::parser::parse;
+use ctl::frontend::inst_builder::generate_instructions;
+use ctl::frontend::parser::parse;
+use ctl::optimizer::ir_builder::build_intermediate_representation;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
@@ -22,14 +23,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Generate IR for each function and dump it to the stdout
     for func in funcs {
-        let ir = generate_ir(&func);
-        let insts = ir.insts();
+        let mut ir = generate_instructions(&func);
+        build_intermediate_representation(&mut ir);
 
-        println!("Function {}, {} instructions:", func.name(), insts.len());
-        for (i, inst) in insts.iter().enumerate() {
-            println!("{} {}", i, inst);
-        }
-        println!();
+        println!("{}", ir.dump());
     }
 
     Ok(())

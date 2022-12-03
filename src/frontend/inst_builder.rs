@@ -1,13 +1,13 @@
 //! This module provides generating of intermediate representation from abstract
 //! syntax tree
 
-use crate::ir;
-use crate::ir::Cc;
-use crate::ir::InstData;
-use crate::ir::InstId;
+use crate::optimizer::ir;
+use crate::optimizer::ir::Cc;
+use crate::optimizer::ir::InstData;
+use crate::optimizer::ir::InstId;
 
-use crate::parser;
-use crate::parser::Node;
+use crate::frontend::parser;
+use crate::frontend::parser::Node;
 
 use std::collections::HashMap;
 
@@ -24,9 +24,9 @@ struct IrBuilder {
 }
 
 impl IrBuilder {
-    fn new() -> Self {
+    fn new(name: String) -> Self {
         Self {
-            func: ir::Function::new(),
+            func: ir::Function::new(name),
             vars: HashMap::new(),
             breaks: Vec::new(),
 
@@ -448,10 +448,9 @@ impl IrBuilder {
     }
 }
 
-// Main function on generating IR from AST. Generates vector of IR instructions and (a hash map with
-// constants).
-pub fn generate_ir(func: &parser::Func) -> ir::Function {
-    let mut builder = IrBuilder::new();
+/// Main function. Generates sequence of IR instructions from AST
+pub fn generate_instructions(func: &parser::Func) -> ir::Function {
+    let mut builder = IrBuilder::new(func.name().clone());
 
     // First instructions are the parameters of the function. Each parameter corresponds to an IR
     // variable.
