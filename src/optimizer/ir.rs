@@ -1,7 +1,7 @@
 //! Intermediate representation (IR)
 
 // Condition code
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cc {
     Eq,
     Ne,
@@ -64,12 +64,22 @@ pub enum InstData {
 
     Neg(Operand),
 
-    IfFalse(Operand, Operand, Cc, Target),
-    Goto(Target),
     Return(InstId),
     ReturnVoid,
 
     Call(String, Vec<InstId>),
+
+    // Control flow instructions used during translation from AST to linear IR
+    // (inst_builder module). `Target`s are instructions to which control is
+    // transferred.
+    IfFalse(Operand, Operand, Cc, Target),
+    Goto(Target),
+
+    // Control flow instructions which are built during translation from linear
+    // IR to control flow graph with instructions in the basic blocks. Targets
+    // are placed as the successors of each BasicBlock.
+    Branch(Operand, Operand, Cc),
+    Jump,
 }
 
 impl InstData {
@@ -109,10 +119,6 @@ impl fmt::Display for InstData {
 
             InstData::Neg(op) => write!(f, "Neg %{}", op),
 
-            InstData::IfFalse(op1, op2, cc, target) => {
-                write!(f, "IfFalse %{} {} %{}, goto {}", op1, cc, op2, target)
-            }
-            InstData::Goto(target) => write!(f, "Goto {}", target),
             InstData::Return(value) => write!(f, "Return %{}", value),
             InstData::ReturnVoid => write!(f, "ReturnVoid"),
 
@@ -129,6 +135,16 @@ impl fmt::Display for InstData {
 
                 Ok(())
             }
+
+            InstData::IfFalse(op1, op2, cc, target) => {
+                write!(f, "IfFalse %{} {} %{}, goto {}", op1, cc, op2, target)
+            }
+            InstData::Goto(target) => write!(f, "Goto {}", target),
+
+            InstData::Branch(op1, op2, cc) => {
+                write!(f, "Branch %{} {} %{}", op1, cc, op2)
+            }
+            InstData::Jump => write!(f, "Jump"),
         }
     }
 }
@@ -136,11 +152,15 @@ impl fmt::Display for InstData {
 impl InstData {
     pub fn dump(&self, id: InstId) -> String {
         match self {
+            // Instructions which don't produce a value
             InstData::Store(_, _)
             | InstData::Goto(_)
             | InstData::IfFalse(_, _, _, _)
+            | InstData::Jump
+            | InstData::Branch(_, _, _)
             | InstData::ReturnVoid
             | InstData::Return(_) => format!(" {} {}", id, self),
+
             _ => format!("%{} = {}", id, self),
         }
     }
@@ -149,7 +169,7 @@ impl InstData {
 #[derive(Clone, Copy)]
 pub struct BlockId(pub usize);
 
-struct InstNode {
+pub struct InstNode {
     block: Option<BlockId>,
     next: Option<InstId>,
 }
@@ -161,9 +181,18 @@ impl InstNode {
             next: None,
         }
     }
+
+    pub fn block(&self) -> BlockId {
+        self.block.unwrap()
+    }
 }
 
 pub struct BasicBlock {
+    // Predecessors and successors
+    preds: Vec<BlockId>,
+    succs: Vec<BlockId>,
+
+    // First and last instructions
     first: Option<InstId>,
     last: Option<InstId>,
 }
@@ -171,9 +200,53 @@ pub struct BasicBlock {
 impl BasicBlock {
     fn new() -> Self {
         Self {
+            preds: Vec::new(),
+            succs: Vec::new(),
             first: None,
             last: None,
         }
+    }
+
+    pub fn add_pred(&mut self, pred: BlockId) {
+        self.preds.push(pred);
+    }
+
+    pub fn add_succ(&mut self, succ: BlockId) {
+        self.succs.push(succ);
+    }
+
+    pub fn last(&self) -> &Option<InstId> {
+        &self.last
+    }
+
+    fn dump_preds(&self) -> String {
+        let mut result = String::new();
+
+        if self.preds.is_empty() {
+            return result;
+        }
+
+        for pred in self.preds.iter().take(self.preds.len() - 1) {
+            result.push_str(&format!("{}, ", pred.0));
+        }
+        result.push_str(&format!("{}", self.preds.last().unwrap().0));
+
+        result
+    }
+
+    fn dump_succs(&self) -> String {
+        let mut result = String::new();
+
+        if self.succs.is_empty() {
+            return result;
+        }
+
+        for pred in self.succs.iter().take(self.succs.len() - 1) {
+            result.push_str(&format!("{}, ", pred.0));
+        }
+        result.push_str(&format!("{}", self.succs.last().unwrap().0));
+
+        result
     }
 
     fn dump(&self, insts: &[InstData], layout: &[InstNode]) -> String {
@@ -183,6 +256,11 @@ impl BasicBlock {
             return result;
         }
 
+        result.push_str(&format!(
+            "preds: [{}] succs: [{}]\n",
+            self.dump_preds(),
+            self.dump_succs()
+        ));
         let mut to_inst = &self.first;
         while let Some(id) = to_inst {
             result.push_str(&insts[to_inst.unwrap().0].dump(*id));
@@ -234,8 +312,16 @@ impl Function {
         &mut self.constants
     }
 
+    pub fn layout(&self) -> &Vec<InstNode> {
+        &self.layout
+    }
+
     pub fn blocks(&self) -> &Vec<BasicBlock> {
         &self.blocks
+    }
+
+    pub fn blocks_mut(&mut self) -> &mut Vec<BasicBlock> {
+        &mut self.blocks
     }
 
     pub fn create_inst(&mut self, data: InstData) -> InstId {
@@ -292,10 +378,10 @@ impl Function {
 impl Function {
     pub fn dump(&self) -> String {
         let mut result = String::new();
-        result.push_str(&format!("Function {}:\n", self.name));
+        result.push_str(&format!("Function {}:\n\n", self.name));
 
         for (id, block) in self.blocks.iter().enumerate() {
-            result.push_str(&format!("BB {}:\n", id));
+            result.push_str(&format!("BB {}: ", id));
             result.push_str(&block.dump(&self.insts, &self.layout));
             result.push('\n');
         }

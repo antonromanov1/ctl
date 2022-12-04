@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut ir = generate_instructions(&func);
         build_intermediate_representation(&mut ir);
 
-        println!("{}", ir.dump());
+        print!("{}", ir.dump());
     }
 
     Ok(())
