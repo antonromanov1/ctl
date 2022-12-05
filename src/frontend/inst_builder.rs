@@ -11,19 +11,19 @@ use crate::frontend::parser::Node;
 
 use std::collections::HashMap;
 
-// Structure which is used during generating IR.
-// insts - already generated instructions
-// vars  - map (variable name from AST -> instruction number in the IR)
-// breaks - vector of vectors of indexes (in `insts` vector) of Goto (break) instructions.
-// cur_loop - index of first instruction of the currently handling loop.
-struct IrBuilder {
+/// Structure which is used during generating IR.
+/// insts - already generated instructions
+/// vars  - map (variable name from AST -> instruction number in the IR)
+/// breaks - vector of vectors of indexes (in `insts` vector) of Goto (break) instructions.
+/// cur_loop - index of first instruction of the currently handling loop.
+struct InstBuilder {
     func: ir::Function,
     vars: HashMap<String, InstId>,
     breaks: Vec<Vec<InstId>>,
     cur_loop: InstId,
 }
 
-impl IrBuilder {
+impl InstBuilder {
     fn new(name: String) -> Self {
         Self {
             func: ir::Function::new(name),
@@ -47,7 +47,7 @@ impl IrBuilder {
     }
 }
 
-impl IrBuilder {
+impl InstBuilder {
     fn gen_and_check(&mut self, expr: &Node) -> InstId {
         let source = self.generate(expr);
         source.expect("Instruction for expression is not defined")
@@ -78,7 +78,7 @@ enum OpType {
     Shr,
 }
 
-impl IrBuilder {
+impl InstBuilder {
     fn gen_arith_or_shift(&mut self, left: &Node, right: &Node, op: OpType) -> InstId {
         let op1 = self.gen_and_check(left);
         let op2 = self.gen_and_check(right);
@@ -154,23 +154,23 @@ impl IrBuilder {
 }
 
 /// Generating IR for the control flow AST nodes
-impl IrBuilder {
-    // Target instruction of the branch is the instruction after the last instruction of the true
-    // successor block. Last instruction of the true successor block is Goto
-    //
-    // Example:
-    // if (condition) {
-    //     block
-    // } else {
-    //     alter block
-    // }
-    //
-    // Built IR:
-    // 0 IfFalse condition Goto 3
-    // 1 block
-    // 2 Goto 4
-    // 3 alter block
-    // 4 Instruction after the branching
+impl InstBuilder {
+    /// Target instruction of the branch is the instruction after the last instruction of the true
+    /// successor block. Last instruction of the true successor block is Goto
+    ///
+    /// Example:
+    /// if (condition) {
+    ///     block
+    /// } else {
+    ///     alter block
+    /// }
+    ///
+    /// Built IR:
+    /// 0 IfFalse condition Goto 3
+    /// 1 block
+    /// 2 Goto 4
+    /// 3 alter block
+    /// 4 Instruction after the branching
     fn generate_if(&mut self, cond: &Node, block: &Node, alter: &Option<Box<Node>>) {
         // (1) Generate operands of the comparison, compute the condition code
         let (op1, op2, cc) = self.gen_operands_cc(cond);
@@ -208,29 +208,29 @@ impl IrBuilder {
         }
     }
 
-    // Target instruction of the branch is the instruction after the last instruction of the
-    // block.
-    //
-    // Example:
-    // a = Load
-    // b = Load
-    // while (a cmp b) {
-    //     block
-    // }
-    //
-    // Built IR:
-    // -2 Load
-    // -1 Load
-    // 0 IfFalse condition Goto 2
-    // 1 block
-    // goto -2
-    // 2 Next instruction
-    //
-    // Every element of IrBuilder's breaks vector is a vector of numbers of the
-    // generated Goto (Break) instructions. At the end of generating while cycle we have to go through
-    // the last vector and write target instructions (which is instruction after the last instruction)
-    // to these Goto's. At the begining of the generating while we push a new vector there and
-    // pop at the end.
+    /// Target instruction of the branch is the instruction after the last instruction of the
+    /// block.
+    ///
+    /// Example:
+    /// a = Load
+    /// b = Load
+    /// while (a cmp b) {
+    ///     block
+    /// }
+    ///
+    /// Built IR:
+    /// -2 Load
+    /// -1 Load
+    /// 0 IfFalse condition Goto 2
+    /// 1 block
+    /// goto -2
+    /// 2 Next instruction
+    ///
+    /// Every element of InstBuilder's breaks vector is a vector of numbers of the
+    /// generated Goto (Break) instructions. At the end of generating while cycle we have to go through
+    /// the last vector and write target instructions (which is instruction after the last instruction)
+    /// to these Goto's. At the begining of the generating while we push a new vector there and
+    /// pop at the end.
     fn generate_while(&mut self, cond: &Node, block: &Node) {
         // (1) Push vector of breaks for this cycle
         self.breaks.push(Vec::new());
@@ -280,8 +280,8 @@ impl IrBuilder {
         self.cur_loop = old_loop;
     }
 
-    // Steps made in this function (except determining begining of the loop) are described in function
-    // `generate_while` therefore these are not given here.
+    /// Steps made in this function (except determining begining of the loop) are described in function
+    /// `generate_while` therefore these are not given here.
     fn generate_infinite_loop(&mut self, block: &Node) {
         self.breaks.push(Vec::new());
 
@@ -302,7 +302,7 @@ impl IrBuilder {
     }
 }
 
-impl IrBuilder {
+impl InstBuilder {
     fn generate_call(&mut self, name: &String, arg_nodes: &[Node]) -> Option<InstId> {
         // Determine or create variables for the arguments
         let mut args = Vec::new();
@@ -317,7 +317,7 @@ impl IrBuilder {
     }
 }
 
-impl IrBuilder {
+impl InstBuilder {
     /// Takes an AST node, checks its type and generates the IR
     fn generate(&mut self, node: &Node) -> Option<InstId> {
         // When we meet identifier we try to find it in the HashMap and extract from it the number
@@ -450,7 +450,7 @@ impl IrBuilder {
 
 /// Main function. Generates sequence of IR instructions from AST
 pub fn generate_instructions(func: &parser::Func) -> ir::Function {
-    let mut builder = IrBuilder::new(func.name().clone());
+    let mut builder = InstBuilder::new(func.name().clone());
 
     // First instructions are the parameters of the function. Each parameter corresponds to an IR
     // variable.

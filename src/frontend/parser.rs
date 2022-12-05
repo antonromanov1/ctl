@@ -122,9 +122,9 @@ impl Token {
     }
 }
 
-// Create the keywords map
-// Key: keywords string
-// Value: pair of the respective Token and length of keywords string
+/// Create the keywords map
+/// Key: keywords string
+/// Value: pair of the respective Token and length of keywords string
 fn build_keywords() -> HashMap<&'static str, (Token, usize)> {
     const RETURN: &str = "return";
     const TRUE: &str = "true";
@@ -869,8 +869,8 @@ impl Parser {
         }
     }
 
-    // Parse block of statements (begining with opening curly brace and ending with the closing one)
-    // and return vector of the nodes
+    /// Parse block of statements (begining with opening curly brace and ending with the closing one)
+    /// and return vector of the nodes
     fn compound_stmt(&mut self) -> ParseResult<Vec<Node>> {
         let mut stmts: Vec<Node> = Vec::new();
         self.expect(&Token::LBrace)?;
