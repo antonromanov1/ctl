@@ -304,37 +304,35 @@ impl Constructor {
     }
 }
 
-fn block_insts(f: *const ir::Function, id: ir::BlockId) -> Vec<ir::InstData> {
-    let mut res = Vec::new();
-
-    unsafe {
-        let mut to_inst = (*f).blocks()[id.0].first() as *const Option<ir::InstId>;
-        while let Some(inst_id) = *to_inst {
-            res.push((*f).insts()[inst_id.0].clone());
-            to_inst = (*f).layout()[inst_id.0].next() as *const Option<ir::InstId>;
-        }
-    }
-
-    res
-}
-
-pub fn compare_functions(f1: &ir::Function, f2: &ir::Function) -> bool {
+pub fn compare_functions(f1: &ir::Function, f2: &ir::Function) -> Result<(), String> {
     if f1.blocks().len() != f2.blocks().len() {
-        return false;
+        return Err("Different length of the blocks".to_string());
     }
 
     for (id, block) in f1.blocks().iter().enumerate() {
         if block.succs() != f2.blocks()[id].succs() {
-            return false;
+            return Err("Fields succs differ".to_string());
         }
 
         let b = ir::BlockId(id);
-        if block_insts(f1 as *const ir::Function, b) != block_insts(f2 as *const ir::Function, b) {
-            return false;
+        unsafe {
+            let mut to_inst1 = f1.blocks()[b.0].first() as *const Option<ir::InstId>;
+            while let Some(inst_id) = *to_inst1 {
+                let in1 = &f1.insts()[inst_id.0];
+                let in2 = &f2.insts()[inst_id.0];
+                if in1 != in2 {
+                    return Err(format!(
+                        "Instructions differ: ({}) and ({})",
+                        in1.dump(inst_id),
+                        in2.dump(inst_id)
+                    ));
+                }
+                to_inst1 = f1.layout()[inst_id.0].next() as *const Option<ir::InstId>;
+            }
         }
     }
 
-    true
+    Ok(())
 }
 
 pub fn dump() -> String {

@@ -1,11 +1,13 @@
-use crate::optimizer::ir_constructor::*;
+use crate::optimizer::ir_constructor::{
+    basic_block, compare_functions, function, get_func, init, inst, Opcode,
+};
 use ctl::optimizer::ir::{Cc, Function, InstData, InstId};
 use ctl::optimizer::ir_builder::build_intermediate_representation;
 
 /// Tests on building the basic blocks from the linear IR
 
 #[test]
-fn build_empty_function() {
+fn build_empty_function() -> Result<(), String> {
     let mut func = Function::new("".to_string());
 
     // Linear IR
@@ -20,11 +22,11 @@ fn build_empty_function() {
     );
 
     // Comparing of what is built with what is constructed manually
-    debug_assert!(compare_functions(&func, get_func()));
+    compare_functions(&func, get_func())
 }
 
 #[test]
-fn build_function_2_parameters() {
+fn build_function_2_parameters() -> Result<(), String> {
     let mut func = Function::new("".to_string());
 
     // Linear IR
@@ -45,11 +47,11 @@ fn build_function_2_parameters() {
     );
 
     // Comparing of what is built with what is constructed manually
-    debug_assert!(compare_functions(&func, get_func()));
+    compare_functions(&func, get_func())
 }
 
 #[test]
-fn build_function_returning_param() {
+fn build_function_returning_param() -> Result<(), String> {
     let mut func = Function::new("".to_string());
 
     // Linear IR
@@ -68,11 +70,11 @@ fn build_function_returning_param() {
     );
 
     // Comparing of what is built with what is constructed manually
-    debug_assert!(compare_functions(&func, get_func()));
+    compare_functions(&func, get_func())
 }
 
 #[test]
-fn build_function_returning_param_plus_local() {
+fn build_function_returning_param_plus_local() -> Result<(), String> {
     let mut func = Function::new("".to_string());
 
     // Linear IR
@@ -101,7 +103,7 @@ fn build_function_returning_param_plus_local() {
     );
 
     // Comparing of what is built with what is constructed manually
-    debug_assert!(compare_functions(&func, get_func()));
+    compare_functions(&func, get_func())
 }
 
 /// Input code:
@@ -127,7 +129,7 @@ fn build_function_returning_param_plus_local() {
 ///     }
 /// }
 #[test]
-fn build_conditional_nested_loops_with_continues() {
+fn build_conditional_nested_loops_with_continues() -> Result<(), String> {
     let mut func = Function::new("".to_string());
 
     // Linear IR
@@ -247,5 +249,5 @@ fn build_conditional_nested_loops_with_continues() {
     );
 
     // Comparing of what is built with what is constructed manually
-    debug_assert!(compare_functions(&func, get_func()));
+    compare_functions(&func, get_func())
 }
