@@ -44,7 +44,7 @@ type Dest = InstId;
 type Target = InstId;
 pub type Value = i64;
 
-// #[derive(Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum InstData {
     Constant(Value),
     Parameter,
@@ -80,6 +80,9 @@ pub enum InstData {
     // are placed as the successors of each BasicBlock.
     Branch(Operand, Operand, Cc),
     Jump,
+
+    // An invalid instruction. Used in order to avoid Option.
+    Invalid,
 }
 
 impl InstData {
@@ -145,6 +148,8 @@ impl fmt::Display for InstData {
                 write!(f, "Branch %{} {} %{}", op1, cc, op2)
             }
             InstData::Jump => write!(f, "Jump"),
+
+            InstData::Invalid => panic!("No dump for Invalid instruction"),
         }
     }
 }
@@ -166,16 +171,17 @@ impl InstData {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BlockId(pub usize);
 
+#[derive(Clone)]
 pub struct InstNode {
     block: Option<BlockId>,
     next: Option<InstId>,
 }
 
 impl InstNode {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             block: None,
             next: None,
@@ -185,8 +191,13 @@ impl InstNode {
     pub fn block(&self) -> BlockId {
         self.block.unwrap()
     }
+
+    pub fn next(&self) -> &Option<InstId> {
+        &self.next
+    }
 }
 
+#[derive(Clone)]
 pub struct BasicBlock {
     // Predecessors and successors
     preds: Vec<BlockId>,
@@ -198,13 +209,21 @@ pub struct BasicBlock {
 }
 
 impl BasicBlock {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             preds: Vec::new(),
             succs: Vec::new(),
             first: None,
             last: None,
         }
+    }
+
+    pub fn succs(&self) -> &[BlockId] {
+        &self.succs
+    }
+
+    pub fn first(&self) -> &Option<InstId> {
+        &self.first
     }
 
     pub fn add_pred(&mut self, pred: BlockId) {
@@ -300,8 +319,12 @@ impl Function {
         self.insts.len()
     }
 
-    pub fn insts(&self) -> &[InstData] {
+    pub fn insts(&self) -> &Vec<InstData> {
         &self.insts
+    }
+
+    pub fn insts_mut(&mut self) -> &mut Vec<InstData> {
+        &mut self.insts
     }
 
     pub fn constants(&self) -> &HashMap<Value, InstId> {
@@ -314,6 +337,10 @@ impl Function {
 
     pub fn layout(&self) -> &Vec<InstNode> {
         &self.layout
+    }
+
+    pub fn layout_mut(&mut self) -> &mut Vec<InstNode> {
+        &mut self.layout
     }
 
     pub fn blocks(&self) -> &Vec<BasicBlock> {

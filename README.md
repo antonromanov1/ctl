@@ -34,8 +34,10 @@ cargo build
 
 And one can run all the <strong>tests</strong> by the command below:
 ```sh
-cargo test
+cargo test -- --test-threads 1
 ```
+
+Option `-- --test-threads 1` is used in order to prevent heisenbug (it shoots in the tests on optimizer).
 
 ## Features
 
