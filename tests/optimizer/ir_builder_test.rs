@@ -106,6 +106,140 @@ fn build_function_returning_param_plus_local() -> Result<(), String> {
     compare_functions(&func, get_func())
 }
 
+/// fn main(p: i64) -> i64 {
+///     return (p - 2) * 4 / 2 % 3;
+/// }
+#[test]
+fn build_arithmetic_expression() -> Result<(), String> {
+    let mut func = Function::new("".to_string());
+
+    // Linear IR
+    func.create_inst(InstData::Parameter);
+    func.create_inst(InstData::Constant(2));
+    func.create_inst(InstData::Sub(InstId(0), InstId(1)));
+    func.create_inst(InstData::Constant(4));
+    func.create_inst(InstData::Mul(InstId(2), InstId(3)));
+    func.create_inst(InstData::Div(InstId(4), InstId(1)));
+    func.create_inst(InstData::Constant(3));
+    func.create_inst(InstData::Mod(InstId(5), InstId(6)));
+    func.create_inst(InstData::Return(InstId(7)));
+
+    build_intermediate_representation(&mut func);
+
+    // Constructing the graph manually
+    function(
+        init(9, 1),
+        &[basic_block(0).insts(&[
+            inst(0, Opcode::Parameter),
+            inst(1, Opcode::Constant).value(2),
+            inst(2, Opcode::Sub).inputs(&[0, 1]),
+            inst(3, Opcode::Constant).value(4),
+            inst(4, Opcode::Mul).inputs(&[2, 3]),
+            inst(5, Opcode::Div).inputs(&[4, 1]),
+            inst(6, Opcode::Constant).value(3),
+            inst(7, Opcode::Mod).inputs(&[5, 6]),
+            inst(8, Opcode::Return).inputs(&[7]),
+        ])],
+    );
+
+    // Comparing of what is built with what is constructed manually
+    compare_functions(&func, get_func())
+}
+
+/// fn main(p: i64) -> i64 {
+///     let mut a: i64 = 0;
+///     if (p == 0) {
+///         a = 1;
+///     }
+/// }
+#[test]
+fn build_conditional_branch_with_assign() -> Result<(), String> {
+    let mut func = Function::new("".to_string());
+
+    // Linear IR
+    func.create_inst(InstData::Parameter);
+    func.create_inst(InstData::Alloc);
+    func.create_inst(InstData::Constant(0));
+    func.create_inst(InstData::Store(InstId(2), InstId(1)));
+    func.create_inst(InstData::IfFalse(InstId(0), InstId(2), Cc::Eq, InstId(7)));
+    func.create_inst(InstData::Constant(1));
+    func.create_inst(InstData::Store(InstId(5), InstId(1)));
+    func.create_inst(InstData::ReturnVoid);
+
+    build_intermediate_representation(&mut func);
+
+    // Constructing the graph manually
+    function(
+        init(9, 3),
+        &[
+            basic_block(0).succs(&[1, 2]).insts(&[
+                inst(0, Opcode::Parameter),
+                inst(1, Opcode::Alloc),
+                inst(2, Opcode::Constant).value(0),
+                inst(3, Opcode::Store).inputs(&[2]).dest(1),
+                inst(4, Opcode::Branch).inputs(&[0, 2]).cc(Cc::Eq),
+            ]),
+            basic_block(1).succs(&[2]).insts(&[
+                inst(5, Opcode::Constant).value(1),
+                inst(6, Opcode::Store).inputs(&[5]).dest(1),
+                inst(8, Opcode::Jump),
+            ]),
+            basic_block(2).insts(&[inst(7, Opcode::ReturnVoid)]),
+        ],
+    );
+
+    // Comparing of what is built with what is constructed manually
+    compare_functions(&func, get_func())
+}
+
+/// fn main(p: i64) -> i64 {
+///     if (p == 0) {
+///         return 0;
+///     } else {
+///         return 1;
+///     }
+/// }
+#[test]
+fn build_conditional_branch_with_returns() -> Result<(), String> {
+    let mut func = Function::new("".to_string());
+
+    // Linear IR
+    func.create_inst(InstData::Parameter);
+    func.create_inst(InstData::Constant(0));
+    func.create_inst(InstData::IfFalse(InstId(0), InstId(1), Cc::Eq, InstId(5)));
+    func.create_inst(InstData::Return(InstId(1)));
+    func.create_inst(InstData::Goto(InstId(7)));
+    func.create_inst(InstData::Constant(1));
+    func.create_inst(InstData::Return(InstId(5)));
+    func.create_inst(InstData::ReturnVoid);
+
+    build_intermediate_representation(&mut func);
+
+    // Constructing the graph manually
+    function(
+        init(9, 4),
+        &[
+            basic_block(0).succs(&[1, 2]).insts(&[
+                inst(0, Opcode::Parameter),
+                inst(1, Opcode::Constant).value(0),
+                inst(2, Opcode::Branch).inputs(&[0, 1]).cc(Cc::Eq),
+            ]),
+            basic_block(1)
+                .succs(&[3])
+                .insts(&[inst(3, Opcode::Return).inputs(&[1]), inst(4, Opcode::Jump)]),
+            basic_block(2).succs(&[3]).insts(&[
+                inst(5, Opcode::Constant).value(1),
+                inst(6, Opcode::Return).inputs(&[5]),
+                inst(8, Opcode::Jump),
+            ]),
+            basic_block(3).insts(&[inst(7, Opcode::ReturnVoid)]),
+        ],
+    );
+
+    // Comparing of what is built with what is constructed manually
+    compare_functions(&func, get_func())
+}
+
 /// Input code:
 /// fn main() {
 ///     let mut a: i64 = 0;

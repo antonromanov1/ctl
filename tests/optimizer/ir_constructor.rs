@@ -176,7 +176,8 @@ impl Constructor {
                 debug_assert_eq!(
                     args.len(),
                     1,
-                    "Store should have only one input - value to store"
+                    "Instruction with ID {}: Store should have only one input (value to store) but {} inputs were given",
+                    unsafe{ CUR_INST.0 }, args.len()
                 );
                 *value = InstId(args[0]);
             }
@@ -184,54 +185,107 @@ impl Constructor {
                 debug_assert_eq!(
                     args.len(),
                     1,
-                    "Load should have only one input - pointer to the variable"
+                    "Instruction with ID {}: Load should have only one input (pointer to the variable) but {} inputs were given",
+                    unsafe{ CUR_INST.0 }, args.len()
                 );
                 *ptr = InstId(args[0]);
             }
 
             InstData::Add(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Add should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Add should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
             InstData::Sub(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Sub should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Sub should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
             InstData::Mul(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Mul should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Mul should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
             InstData::Div(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Div should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Div should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
             InstData::Mod(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Mod should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Mod should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
             InstData::Shl(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Shl should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Shl should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
             InstData::Shr(ref mut op1, ref mut op2) => {
-                debug_assert_eq!(args.len(), 2, "Shr should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Shr should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
 
             InstData::Neg(ref mut op) => {
-                debug_assert_eq!(args.len(), 1, "Neg should have only one input - value");
+                debug_assert_eq!(
+                    args.len(),
+                    1,
+                    "Instruction with ID {}: Neg should have only one input (value) but {} inputs given",
+                    unsafe { CUR_INST.0 }, args.len()
+                );
                 *op = InstId(args[0]);
             }
 
             InstData::Return(ref mut value) => {
-                debug_assert_eq!(args.len(), 1, "Return should have only one input - value");
+                debug_assert_eq!(
+                    args.len(),
+                    1,
+                    "Instruction with ID {}: Return should have only one input (value) but {} inputs given",
+                    unsafe { CUR_INST.0 }, args.len()
+                );
                 *value = InstId(args[0]);
             }
 
@@ -245,7 +299,13 @@ impl Constructor {
             }
 
             InstData::Branch(ref mut op1, ref mut op2, _) => {
-                debug_assert_eq!(args.len(), 2, "Branch should have only 2 inputs");
+                debug_assert_eq!(
+                    args.len(),
+                    2,
+                    "Instruction with ID {}: Branch should have only 2 inputs but {} were given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                );
                 *op1 = InstId(args[0]);
                 *op2 = InstId(args[1]);
             }
@@ -254,10 +314,19 @@ impl Constructor {
             | InstData::Constant(_)
             | InstData::Jump
             | InstData::Parameter
-            | InstData::ReturnVoid => panic!("Such an instruction can not have an input"),
+            | InstData::ReturnVoid => {
+                panic!(
+                    "Instruction with ID {}: should not have an input but {} inputs given",
+                    unsafe { CUR_INST.0 },
+                    args.len()
+                )
+            }
 
             InstData::IfFalse(_, _, _, _) | InstData::Goto(_) => {
-                panic!("Such an instruction should not be in current stage")
+                panic!(
+                    "Instruction with ID {}: Such an instruction should not be in current stage",
+                    unsafe { CUR_INST.0 },
+                )
             }
 
             InstData::Invalid => panic!("Invalid should not be created in the ir constructor"),
