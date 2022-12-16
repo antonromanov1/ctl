@@ -3,8 +3,6 @@
 Now CTL consists of the unit tests and also can be compiled in an executable binary which gets **source code** and prints **IR** in a text format.
 This source is (or almost is) a valid **Rust** source code.
 
-![CTL diagram](/assets/general_diagram.png)
-
 ## Intermediate representation (IR)
 
 On this step I have linear code which represents a sequence of instructions.
