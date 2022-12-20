@@ -1,4 +1,6 @@
-use crate::optimizer::ir::{BlockId, Function, InstData, InstId};
+use crate::optimizer::ir::basic_block::BlockId;
+use crate::optimizer::ir::function::Function;
+use crate::optimizer::ir::inst::{InstData, InstId};
 
 fn find_leaders(insts: &[InstData]) -> Vec<usize> {
     let mut leaders = Vec::new();

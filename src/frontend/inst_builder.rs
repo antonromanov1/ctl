@@ -2,9 +2,9 @@
 //! syntax tree
 
 use crate::optimizer::ir;
-use crate::optimizer::ir::Cc;
-use crate::optimizer::ir::InstData;
-use crate::optimizer::ir::InstId;
+use crate::optimizer::ir::inst::Cc;
+use crate::optimizer::ir::inst::InstData;
+use crate::optimizer::ir::inst::InstId;
 
 use crate::frontend::parser;
 use crate::frontend::parser::Node;
@@ -17,7 +17,7 @@ use std::collections::HashMap;
 /// breaks - vector of vectors of indexes (in `insts` vector) of Goto (break) instructions.
 /// cur_loop - index of first instruction of the currently handling loop.
 struct InstBuilder {
-    func: ir::Function,
+    func: ir::function::Function,
     vars: HashMap<String, InstId>,
     breaks: Vec<Vec<InstId>>,
     cur_loop: InstId,
@@ -26,7 +26,7 @@ struct InstBuilder {
 impl InstBuilder {
     fn new(name: String) -> Self {
         Self {
-            func: ir::Function::new(name),
+            func: ir::function::Function::new(name),
             vars: HashMap::new(),
             breaks: Vec::new(),
 
@@ -449,7 +449,7 @@ impl InstBuilder {
 }
 
 /// Main function. Generates sequence of IR instructions from AST
-pub fn generate_instructions(func: &parser::Func) -> ir::Function {
+pub fn generate_instructions(func: &parser::Func) -> ir::function::Function {
     let mut builder = InstBuilder::new(func.name().clone());
 
     // First instructions are the parameters of the function. Each parameter corresponds to an IR

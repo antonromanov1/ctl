@@ -1,7 +1,8 @@
 use crate::optimizer::ir_constructor::{
     basic_block, compare_functions, function, get_func, init, inst, Opcode,
 };
-use ctl::optimizer::ir::{Cc, Function, InstData, InstId};
+use ctl::optimizer::ir::function::Function;
+use ctl::optimizer::ir::inst::{Cc, InstData, InstId};
 use ctl::optimizer::ir_builder::build_intermediate_representation;
 
 /// Tests on building the basic blocks from the linear IR

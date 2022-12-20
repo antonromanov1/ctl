@@ -1,12 +1,12 @@
 use ctl::frontend::inst_builder::generate_instructions;
 use ctl::frontend::parser::parse;
-use ctl::optimizer::ir;
+use ctl::optimizer::ir::inst::{InstData, InstId};
 
-fn dump(insts: &[ir::InstData]) -> String {
+fn dump(insts: &[InstData]) -> String {
     let mut res = String::new();
     for (i, inst) in insts.iter().enumerate() {
         res.push_str("\n        ");
-        res.push_str(&inst.dump(ir::InstId(i)));
+        res.push_str(&inst.dump(InstId(i)));
     }
 
     res
